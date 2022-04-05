@@ -126,7 +126,7 @@ if [ "$FUZZING_LANGUAGE" = "python" ]; then
 fi
 
 # Copy latest llvm-symbolizer in $OUT for stack symbolization.
-cp $(which llvm-symbolizer) $OUT/
+#cp $(which llvm-symbolizer) $OUT/
 
 # Copy Jazzer to $OUT if needed.
 if [ "$FUZZING_LANGUAGE" = "jvm" ]; then
@@ -190,3 +190,5 @@ if [[ "$FUZZING_ENGINE" = "dataflow" ]]; then
   # Remove seed corpus as it can be huge but is not needed for a dataflow build.
   rm -f $OUT/*.zip
 fi
+
+mv /usr/local/bin/llvm-symbolizer /usr/local/bin/llvm-symbolizer.bak

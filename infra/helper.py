@@ -29,9 +29,13 @@ import re
 import subprocess
 import sys
 import templates
+import time
 
 import constants
 
+DOCKER_TIMEOUT = 4          # Timeout value
+DOCKER_MEMLIMIT = "15g"     # Memory limit for each docker container
+DOCKER_TIMEOUT_UNIT = "h"   # Timeout unit
 OSS_FUZZ_DIR = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 BUILD_DIR = os.path.join(OSS_FUZZ_DIR, 'build')
 
@@ -609,15 +613,17 @@ def build_fuzzers_impl(  # pylint: disable=too-many-arguments,too-many-locals,to
 
     # Clean old and possibly conflicting artifacts in project's out directory.
     docker_run([
+        '-m', DOCKER_MEMLIMIT,
         '-v',
         '%s:/out' % project.out, '-t',
-        'gcr.io/oss-fuzz/%s' % project.name, '/bin/bash', '-c', 'rm -rf /out/*'
+        'gcr.io/oss-fuzz/%s' % project.name, 'timeout', '-k', '120', f'{DOCKER_TIMEOUT}{DOCKER_TIMEOUT_UNIT}', '/bin/bash', '-c', 'rm -rf /out/*'
     ])
 
     docker_run([
+        '-m', DOCKER_MEMLIMIT,
         '-v',
         '%s:/work' % project.work, '-t',
-        'gcr.io/oss-fuzz/%s' % project.name, '/bin/bash', '-c', 'rm -rf /work/*'
+        'gcr.io/oss-fuzz/%s' % project.name, 'timeout', '-k', '120', f'{DOCKER_TIMEOUT}{DOCKER_TIMEOUT_UNIT}', '/bin/bash', '-c', 'rm -rf /work/*'
     ])
 
   else:
@@ -655,13 +661,19 @@ def build_fuzzers_impl(  # pylint: disable=too-many-arguments,too-many-locals,to
       ]
 
   command += [
+      '-m', DOCKER_MEMLIMIT,
       '-v',
       '%s:/out' % project.out, '-v',
       '%s:/work' % project.work, '-t',
-      'gcr.io/oss-fuzz/%s' % project.name
+      'gcr.io/oss-fuzz/%s' % project.name,
+      'timeout', '-k', '120', '-s', 'KILL', f'{DOCKER_TIMEOUT}{DOCKER_TIMEOUT_UNIT}',
+      'compile',
   ]
+  print(command)
 
+  print("compile", time.time())
   result = docker_run(command)
+  print("compile", time.time())
   if not result:
     logging.error('Building fuzzers failed.')
     return False
@@ -714,8 +726,10 @@ def check_build(args):
     env += args.e
 
   run_args = _env_to_docker_args(env) + [
+      '-m', DOCKER_MEMLIMIT,
       '-v',
-      '%s:/out' % args.project.out, '-t', 'gcr.io/oss-fuzz-base/base-runner'
+      '%s:/out' % args.project.out, '-t', 'gcr.io/oss-fuzz-base/base-runner',
+      'timeout', '-k', '120', f'{DOCKER_TIMEOUT}{DOCKER_TIMEOUT_UNIT}',
   ]
 
   if args.fuzzer_name:
@@ -877,10 +891,12 @@ def coverage(args):
     run_args.extend(['-v', '%s:/corpus' % args.project.corpus])
 
   run_args.extend([
+      '-m', DOCKER_MEMLIMIT,
       '-v',
       '%s:/out' % args.project.out,
       '-t',
       'gcr.io/oss-fuzz-base/base-runner',
+      'timeout', '-k', '120', f'{DOCKER_TIMEOUT}{DOCKER_TIMEOUT_UNIT}',
   ])
 
   run_args.append('coverage')
@@ -927,10 +943,12 @@ def run_fuzzer(args):
     ])
 
   run_args.extend([
+      '-m', DOCKER_MEMLIMIT,
       '-v',
       '%s:/out' % args.project.out,
       '-t',
       'gcr.io/oss-fuzz-base/base-runner',
+      'timeout', '-k', '120', f'{DOCKER_TIMEOUT}{DOCKER_TIMEOUT_UNIT}',
       'run_fuzzer',
       args.fuzzer_name,
   ] + args.fuzzer_args)
@@ -981,6 +999,7 @@ def reproduce_impl(  # pylint: disable=too-many-arguments
       '%s:/testcase' % _get_absolute_path(testcase_path),
       '-t',
       'gcr.io/oss-fuzz-base/%s' % image_name,
+      'timeout', '-k', '120', f'{DOCKER_TIMEOUT}{DOCKER_TIMEOUT_UNIT}',
       'reproduce',
       fuzzer_name,
       '-runs=100',
