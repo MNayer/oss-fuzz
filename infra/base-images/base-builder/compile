@@ -19,14 +19,17 @@ echo "---------------------------------------------------------------"
 
 # Based on https://github.com/aflgo/oss-fuzz.git
 if ! [ -z "$COMMIT" ]; then
+	echo "INFO: Rollback to commit $COMMIT of project $PROJECT"
 	pushd $SRC/$PROJECT >/dev/null
 	if [ -d .git ]; then
 		if [ -f $(git rev-parse --git-dir)/shallow ]; then
+			echo "INFO: git unshallow $PROJECT"
 			git pull --unshallow
 		fi
+		echo "INFO: checkout commit $COMMIT of project $PROJECT"
 		git checkout $COMMIT
 	else
-		echo "[!] Either project $PROJECT does not use git or path $SRC/$PROJECT is incorrect."
+		echo "ERROR: Either project $PROJECT does not use git or path $SRC/$PROJECT is incorrect."
 		exit 1
 	fi
 	popd >/dev/null
