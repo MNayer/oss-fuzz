@@ -178,6 +178,11 @@ CXXFLAGS_SAVED=$CXXFLAGS
 if ! [ -z "$NOINST" ]; then
 	CFLAGS=$(echo $CFLAGS_SAVED | sed "s/-fsanitize..*\(\s\|$\)//g")
 	CXXFLAGS=$(echo $CXXFLAGS_SAVED | sed "s/-fsanitize..*\(\s\|$\)//g")
+	echo "INFO: Build without instrumentation. New CFLAGS/CXXFLAGS:"
+	echo "---------------------------------------------------------------"
+	echo "CFLAGS=$CFLAGS"
+	echo "CXXFLAGS=$CXXFLAGS"
+	echo "---------------------------------------------------------------"
 fi
 
 BUILD_CMD="bash -eux $SRC/build.sh"
