@@ -258,6 +258,11 @@ def get_parser():  # pylint: disable=too-many-statements
   build_fuzzers_parser.add_argument('--commit',
                                     help='project commit to rollback to',
                                     default="")
+  build_fuzzers_parser.add_argument('--noinst',
+                                    dest='noinst',
+                                    action='store_true',
+                                    default=False,
+                                    help='build target without sanitizers and fuzzing instrumentation (libfuzzer, C/C++)')
   build_fuzzers_parser.add_argument('--mount_path',
                                     dest='mount_path',
                                     help='path to mount local source in '
@@ -607,6 +612,7 @@ def build_fuzzers_impl(  # pylint: disable=too-many-arguments,too-many-locals,to
     env_to_add,
     source_path,
     commit,
+    noinst,
     mount_path=None):
   """Builds fuzzers."""
   if not build_image_impl(project):
@@ -638,6 +644,7 @@ def build_fuzzers_impl(  # pylint: disable=too-many-arguments,too-many-locals,to
       'ARCHITECTURE=' + architecture,
       'PROJECT=' + project.name,
       'COMMIT=' + commit,
+      'NOINST=' + ("1" if noinst else ""),
   ]
 
   _add_oss_fuzz_ci_if_needed(env)
@@ -697,6 +704,7 @@ def build_fuzzers(args):
                             args.e,
                             args.source_path,
                             args.commit,
+                            args.noinst,
                             mount_path=args.mount_path)
 
 
