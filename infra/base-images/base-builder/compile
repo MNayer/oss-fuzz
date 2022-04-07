@@ -172,25 +172,7 @@ echo "CXXFLAGS=$CXXFLAGS"
 echo "RUSTFLAGS=$RUSTFLAGS"
 echo "---------------------------------------------------------------"
 
-CFLAGS_SAVED=$CFLAGS
-CXXFLAGS_SAVED=$CXXFLAGS
-
-if ! [ -z "$NOINST" ]; then
-	CFLAGS=$(echo $CFLAGS_SAVED | sed "s/-fsanitize..*\(\s\|$\)//g")
-	CXXFLAGS=$(echo $CXXFLAGS_SAVED | sed "s/-fsanitize..*\(\s\|$\)//g")
-	echo "INFO: Build without instrumentation. New CFLAGS/CXXFLAGS:"
-	echo "---------------------------------------------------------------"
-	echo "CFLAGS=$CFLAGS"
-	echo "CXXFLAGS=$CXXFLAGS"
-	echo "---------------------------------------------------------------"
-fi
-
 BUILD_CMD="bash -eux $SRC/build.sh"
-
-if ! [ -z "$NOINST" ]; then
-	CFLAGS=$CFLAGS_SAVED
-	CXXFLAGS=$CXXFLAGS_SAVED
-fi
 
 # Set +u temporarily to continue even if GOPATH and OSSFUZZ_RUSTPATH are undefined.
 set +u
@@ -204,6 +186,21 @@ if [ "$FUZZING_LANGUAGE" = "rust" ]; then
   export rustch=`rustc --version --verbose | grep commit-hash | cut -d' ' -f2`
   mkdir -p /rustc/$rustch/
   cp -r /rust/rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/ /rustc/$rustch/
+fi
+
+CFLAGS_SAVED=$CFLAGS
+CXXFLAGS_SAVED=$CXXFLAGS
+
+if ! [ -z "$NOINST" ]; then
+	export CFLAGS=$(echo $CFLAGS_SAVED | sed "s/-fsanitize.[^ ]*\(\s\|$\)//g")
+	export CXXFLAGS=$(echo $CXXFLAGS_SAVED | sed "s/-fsanitize.[^ ]*\(\s\|$\)//g")
+	export AFL_NOOPT=1
+
+	echo "INFO: Build without instrumentation. New CFLAGS/CXXFLAGS:"
+	echo "---------------------------------------------------------------"
+	echo "CFLAGS=$CFLAGS"
+	echo "CXXFLAGS=$CXXFLAGS"
+	echo "---------------------------------------------------------------"
 fi
 
 if [ "${BUILD_UID-0}" -ne "0" ]; then
@@ -220,6 +217,12 @@ else
     # Some directories have broken symlinks (e.g. honggfuzz), ignore the errors.
     $COPY_SOURCES_CMD 2>/dev/null || true
   fi
+fi
+
+if ! [ -z "$NOINST" ]; then
+	export CFLAGS=$CFLAGS_SAVED
+	export CXXFLAGS=$CXXFLAGS_SAVED
+	unset AFL_NOOPT
 fi
 
 if [[ "$FUZZING_ENGINE" = "dataflow" ]]; then
