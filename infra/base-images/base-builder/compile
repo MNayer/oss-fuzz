@@ -18,22 +18,36 @@
 echo "---------------------------------------------------------------"
 
 # Based on https://github.com/aflgo/oss-fuzz.git
+# Since we can't rely on the cloned source code directory
+# to be called exactly like the project (e. g.
+# $SRC/$PROJECT with PROJECT=project.name), we enter each subdirectory
+# of $SRC and try to checkout the commit.
 if ! [ -z "$COMMIT" ]; then
 	echo "INFO: Rollback to commit $COMMIT of project $PROJECT"
-	pushd $SRC/$PROJECT >/dev/null
-	if [ -d .git ]; then
-		if [ -f $(git rev-parse --git-dir)/shallow ]; then
-			echo "INFO: git unshallow $PROJECT"
-			git pull --unshallow
+	directories=$(find $SRC -maxdepth 1 -type d)
+	checkout_success=0
+	for directory in $directories; do
+		pushd $directory >/dev/null  
+		if [ -d .git ]; then         
+			if [ -f $(git rev-parse --git-dir)/shallow ]; then
+				echo "INFO: git unshallow $directory of project $PROJECT"
+				git pull --unshallow
+			fi
+			git checkout $COMMIT
+			if [ $? -eq 0 ]; then
+				echo "INFO: checkout commit $COMMIT of project $PROJECT"
+				checkout_success=1
+				break
+			fi
 		fi
-		echo "INFO: checkout commit $COMMIT of project $PROJECT"
-		git checkout $COMMIT
-	else
-		echo "ERROR: Either project $PROJECT does not use git or path $SRC/$PROJECT is incorrect."
+		popd >/dev/null
+	done
+	if [ $checkout_success -eq 0 ]; then
+		echo "ERROR: Rollback to commit $COMMIT of project $PROJECT failed."
 		exit 1
 	fi
-	popd >/dev/null
 fi
+
 
 if [ "$SANITIZER" = "dataflow" ] && [ "$FUZZING_ENGINE" != "dataflow" ]; then
   echo "ERROR: 'dataflow' sanitizer can be used with 'dataflow' engine only."
