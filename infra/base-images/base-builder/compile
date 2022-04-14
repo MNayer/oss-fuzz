@@ -33,12 +33,20 @@ if ! [ -z "$COMMIT" ]; then
 				echo "INFO: git unshallow $directory of project $PROJECT"
 				git pull --unshallow
 			fi
-			git checkout $COMMIT
-			if [ $? -eq 0 ]; then
-				echo "INFO: checkout commit $COMMIT of project $PROJECT"
+			echo "INFO: Try to checkout $COMMIT of project $PROJECT in directory $directory"
+			if git checkout $COMMIT; then
+				echo "INFO: checked out commit $COMMIT of project $PROJECT"
 				checkout_success=1
+				popd >/dev/null
 				break
 			fi
+			echo "INFO: checkout $COMMIT of project $PROJECT in directory $directory failed"
+			#git checkout $COMMIT
+			#if [ $? -eq 0 ]; then
+			#	echo "INFO: checkout commit $COMMIT of project $PROJECT"
+			#	checkout_success=1
+			#	break
+			#fi
 		fi
 		popd >/dev/null
 	done
