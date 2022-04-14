@@ -252,4 +252,5 @@ if [[ "$FUZZING_ENGINE" = "dataflow" ]]; then
   rm -f $OUT/*.zip
 fi
 
+# So that tracebacks will not be symbolized:
 mv /usr/local/bin/llvm-symbolizer /usr/local/bin/llvm-symbolizer.bak
