@@ -212,10 +212,12 @@ fi
 
 CFLAGS_SAVED=$CFLAGS
 CXXFLAGS_SAVED=$CXXFLAGS
+LIB_FUZZING_ENGINE_SAVED=$LIB_FUZZING_ENGINE
 
 if ! [ -z "$NOINST" ]; then
 	export CFLAGS=$(echo $CFLAGS_SAVED | sed "s/-fsanitize.[^ ]*\(\s\|$\)//g")
 	export CXXFLAGS=$(echo $CXXFLAGS_SAVED | sed "s/-fsanitize.[^ ]*\(\s\|$\)//g")
+	export LIB_FUZZING_ENGINE="-pthread /usr/local/lib/clang/14.0.0/lib/linux/libclang_rt.fuzzer-x86_64.a $LIB_FUZZING_ENGINE_SAVED"
 	export AFL_NOOPT=1
 
 	echo "INFO: Build without instrumentation. New CFLAGS/CXXFLAGS:"
@@ -244,6 +246,7 @@ fi
 if ! [ -z "$NOINST" ]; then
 	export CFLAGS=$CFLAGS_SAVED
 	export CXXFLAGS=$CXXFLAGS_SAVED
+	export LIB_FUZZING_ENGINE=$LIB_FUZZING_ENGINE_SAVED
 	unset AFL_NOOPT
 fi
 
