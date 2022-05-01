@@ -235,6 +235,9 @@ def get_parser():  # pylint: disable=too-many-statements
   build_image_parser.add_argument('--pull',
                                   action='store_true',
                                   help='Pull latest base image.')
+  build_image_parser.add_argument('--commit',
+                                    help='project commit to rollback to',
+                                    default="")
   build_image_parser.add_argument('--cache',
                                   action='store_true',
                                   default=False,
@@ -344,6 +347,9 @@ def get_parser():  # pylint: disable=too-many-statements
   reproduce_parser.add_argument('--valgrind',
                                 action='store_true',
                                 help='run with valgrind')
+  reproduce_parser.add_argument('--commit',
+                                    help='project commit to rollback to',
+                                    default="")
   reproduce_parser.add_argument('project',
                                 help='name of the project or path (external)')
   reproduce_parser.add_argument('fuzzer_name', help='name of the fuzzer')
@@ -356,6 +362,9 @@ def get_parser():  # pylint: disable=too-many-statements
 
   shell_parser = subparsers.add_parser(
       'shell', help='Run /bin/bash within the builder container.')
+  shell_parser.add_argument('--commit',
+                                    help='project commit to rollback to',
+                                    default="")
   shell_parser.add_argument('project',
                             help='name of the project or path (external)')
   shell_parser.add_argument('source_path',
@@ -465,7 +474,7 @@ def _add_environment_args(parser):
                       help="set environment variable e.g. VAR=value")
 
 
-def build_image_impl(project, cache=True, pull=False):
+def build_image_impl(project, commit, cache=True, pull=False):
   """Builds image."""
   image_name = project.name
 
@@ -490,7 +499,7 @@ def build_image_impl(project, cache=True, pull=False):
 
   build_args += [
       '-t',
-      'gcr.io/%s/%s' % (image_project, image_name), '--file', dockerfile_path
+      'gcr.io/%s/%s_%s' % (image_project, image_name, commit), '--file', dockerfile_path
   ]
   build_args.append(docker_build_dir)
   return docker_build(build_args)
@@ -597,7 +606,7 @@ def build_image(args):
     logging.info('Using cached base images...')
 
   # If build_image is called explicitly, don't use cache.
-  if build_image_impl(args.project, cache=args.cache, pull=pull):
+  if build_image_impl(args.project, args.commit, cache=args.cache, pull=pull):
     return True
 
   return False
@@ -615,7 +624,7 @@ def build_fuzzers_impl(  # pylint: disable=too-many-arguments,too-many-locals,to
     noinst,
     mount_path=None):
   """Builds fuzzers."""
-  if not build_image_impl(project):
+  if not build_image_impl(project, commit):
     return False
 
   if clean:
@@ -626,14 +635,14 @@ def build_fuzzers_impl(  # pylint: disable=too-many-arguments,too-many-locals,to
         '-m', DOCKER_MEMLIMIT,
         '-v',
         '%s:/out' % project.out, '-t',
-        'gcr.io/oss-fuzz/%s:%s' % (project.name, commit), 'timeout', '-k', '120', f'{DOCKER_TIMEOUT}{DOCKER_TIMEOUT_UNIT}', '/bin/bash', '-c', 'rm -rf /out/*'
+        'gcr.io/oss-fuzz/%s_%s' % (project.name, commit), 'timeout', '-k', '120', f'{DOCKER_TIMEOUT}{DOCKER_TIMEOUT_UNIT}', '/bin/bash', '-c', 'rm -rf /out/*'
     ])
 
     docker_run([
         '-m', DOCKER_MEMLIMIT,
         '-v',
         '%s:/work' % project.work, '-t',
-        'gcr.io/oss-fuzz/%s:%s' % (project.name, commit), 'timeout', '-k', '120', f'{DOCKER_TIMEOUT}{DOCKER_TIMEOUT_UNIT}', '/bin/bash', '-c', 'rm -rf /work/*'
+        'gcr.io/oss-fuzz/%s_%s' % (project.name, commit), 'timeout', '-k', '120', f'{DOCKER_TIMEOUT}{DOCKER_TIMEOUT_UNIT}', '/bin/bash', '-c', 'rm -rf /work/*'
     ])
 
   else:
@@ -678,7 +687,7 @@ def build_fuzzers_impl(  # pylint: disable=too-many-arguments,too-many-locals,to
       '-v',
       '%s:/out' % project.out, '-v',
       '%s:/work' % project.work, '-t',
-      'gcr.io/oss-fuzz/%s:%s' % (project.name, commit),
+      'gcr.io/oss-fuzz/%s_%s' % (project.name, commit),
       'timeout', '-k', '120', '-s', 'KILL', f'{DOCKER_TIMEOUT}{DOCKER_TIMEOUT_UNIT}',
       'compile',
   ]
@@ -1154,7 +1163,7 @@ def shell(args):
       '-v',
       '%s:/out' % out_dir, '-v',
       '%s:/work' % args.project.work, '-t',
-      'gcr.io/%s/%s' % (image_project, args.project.name), '/bin/bash'
+      'gcr.io/%s/%s_%s' % (image_project, args.project.name, args.commit), '/bin/bash'
   ])
 
   docker_run(run_args)
