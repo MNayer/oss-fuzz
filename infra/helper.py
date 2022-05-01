@@ -626,14 +626,14 @@ def build_fuzzers_impl(  # pylint: disable=too-many-arguments,too-many-locals,to
         '-m', DOCKER_MEMLIMIT,
         '-v',
         '%s:/out' % project.out, '-t',
-        'gcr.io/oss-fuzz/%s' % project.name, 'timeout', '-k', '120', f'{DOCKER_TIMEOUT}{DOCKER_TIMEOUT_UNIT}', '/bin/bash', '-c', 'rm -rf /out/*'
+        'gcr.io/oss-fuzz/%s:%s' % (project.name, commit), 'timeout', '-k', '120', f'{DOCKER_TIMEOUT}{DOCKER_TIMEOUT_UNIT}', '/bin/bash', '-c', 'rm -rf /out/*'
     ])
 
     docker_run([
         '-m', DOCKER_MEMLIMIT,
         '-v',
         '%s:/work' % project.work, '-t',
-        'gcr.io/oss-fuzz/%s' % project.name, 'timeout', '-k', '120', f'{DOCKER_TIMEOUT}{DOCKER_TIMEOUT_UNIT}', '/bin/bash', '-c', 'rm -rf /work/*'
+        'gcr.io/oss-fuzz/%s:%s' % (project.name, commit), 'timeout', '-k', '120', f'{DOCKER_TIMEOUT}{DOCKER_TIMEOUT_UNIT}', '/bin/bash', '-c', 'rm -rf /work/*'
     ])
 
   else:
@@ -678,7 +678,7 @@ def build_fuzzers_impl(  # pylint: disable=too-many-arguments,too-many-locals,to
       '-v',
       '%s:/out' % project.out, '-v',
       '%s:/work' % project.work, '-t',
-      'gcr.io/oss-fuzz/%s' % project.name,
+      'gcr.io/oss-fuzz/%s:%s' % (project.name, commit),
       'timeout', '-k', '120', '-s', 'KILL', f'{DOCKER_TIMEOUT}{DOCKER_TIMEOUT_UNIT}',
       'compile',
   ]
