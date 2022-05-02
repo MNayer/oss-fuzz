@@ -228,8 +228,8 @@ if ! [ -z "$NOINST" ]; then
 fi
 
 if ! [ -z "$DWARF3" ]; then
-	export CFLAGS="$CFLAGS -gdwarf-3"
-	export CXXFLAGS="$CXXFLAGS -gdwarf-3"
+	export CFLAGS="-gdwarf-3 $CFLAGS"
+	export CXXFLAGS="-gdwarf-3 $CXXFLAGS"
 
 	echo "INFO: Use DWARF3 debug information. New CFLAGS/CXXFLAGS:"
 	echo "---------------------------------------------------------------"
@@ -237,8 +237,8 @@ if ! [ -z "$DWARF3" ]; then
 	echo "CXXFLAGS=$CXXFLAGS"
 	echo "---------------------------------------------------------------"
 else
-	export CFLAGS="$CFLAGS -gdwarf-5"
-	export CXXFLAGS="$CXXFLAGS -gdwarf-5"
+	export CFLAGS="-gdwarf-5 $CFLAGS"
+	export CXXFLAGS="-gdwarf-5 $CXXFLAGS"
 
 	echo "INFO: Use DWARF5 debug information. New CFLAGS/CXXFLAGS:"
 	echo "---------------------------------------------------------------"
