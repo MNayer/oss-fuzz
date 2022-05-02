@@ -266,6 +266,11 @@ def get_parser():  # pylint: disable=too-many-statements
                                     action='store_true',
                                     default=False,
                                     help='build target without sanitizers and fuzzing instrumentation (libfuzzer, C/C++)')
+  build_fuzzers_parser.add_argument('--dwarf3',
+                                    dest='dwarf3',
+                                    action='store_true',
+                                    default=False,
+                                    help='build target using DWARF3 debugging information')
   build_fuzzers_parser.add_argument('--mount_path',
                                     dest='mount_path',
                                     help='path to mount local source in '
@@ -622,6 +627,7 @@ def build_fuzzers_impl(  # pylint: disable=too-many-arguments,too-many-locals,to
     source_path,
     commit,
     noinst,
+    dwarf3,
     mount_path=None):
   """Builds fuzzers."""
   if not build_image_impl(project, commit):
@@ -654,6 +660,7 @@ def build_fuzzers_impl(  # pylint: disable=too-many-arguments,too-many-locals,to
       'PROJECT=' + project.name,
       'COMMIT=' + commit,
       'NOINST=' + ("1" if noinst else ""),
+      'DWARF3=' + ("1" if dwarf3 else ""),
   ]
 
   _add_oss_fuzz_ci_if_needed(env)
@@ -714,6 +721,7 @@ def build_fuzzers(args):
                             args.source_path,
                             args.commit,
                             args.noinst,
+                            args.dwarf3,
                             mount_path=args.mount_path)
 
 
