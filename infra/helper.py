@@ -268,6 +268,7 @@ def get_parser():  # pylint: disable=too-many-statements
                                     help='build target without sanitizers and fuzzing instrumentation (libfuzzer, C/C++)')
   build_fuzzers_parser.add_argument('--dwarf',
                                     dest='dwarf_version',
+                                    type=int,
                                     default=5,
                                     help='build target using DWARFx debugging information')
   build_fuzzers_parser.add_argument('--mount_path',
