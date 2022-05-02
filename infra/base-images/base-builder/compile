@@ -227,25 +227,18 @@ if ! [ -z "$NOINST" ]; then
 	echo "---------------------------------------------------------------"
 fi
 
-if ! [ -z "$DWARF3" ]; then
-	export CFLAGS="-gdwarf-3 $CFLAGS"
-	export CXXFLAGS="-gdwarf-3 $CXXFLAGS"
-
-	echo "INFO: Use DWARF3 debug information. New CFLAGS/CXXFLAGS:"
-	echo "---------------------------------------------------------------"
-	echo "CFLAGS=$CFLAGS"
-	echo "CXXFLAGS=$CXXFLAGS"
-	echo "---------------------------------------------------------------"
-else
-	export CFLAGS="-gdwarf-5 $CFLAGS"
-	export CXXFLAGS="-gdwarf-5 $CXXFLAGS"
-
-	echo "INFO: Use DWARF5 debug information. New CFLAGS/CXXFLAGS:"
-	echo "---------------------------------------------------------------"
-	echo "CFLAGS=$CFLAGS"
-	echo "CXXFLAGS=$CXXFLAGS"
-	echo "---------------------------------------------------------------"
-fi
+# Add dwarf version to CFLAGS/CXXFLAGS explicitly
+# Note, this may not result in a target binary that actually contains
+# the selected dwarf version (at least that's the case for the instrumented
+# target, the target without instrumentation seems to contain the selected
+# dwarf version).
+export CFLAGS="-gdwarf-$DWARF $CFLAGS"
+export CXXFLAGS="-gdwarf-$DWARF $CXXFLAGS"
+echo "INFO: Use DWARF$DWARF debug information. New CFLAGS/CXXFLAGS:"
+echo "---------------------------------------------------------------"
+echo "CFLAGS=$CFLAGS"
+echo "CXXFLAGS=$CXXFLAGS"
+echo "---------------------------------------------------------------"
 
 if [ "${BUILD_UID-0}" -ne "0" ]; then
   adduser -u $BUILD_UID --disabled-password --gecos '' builder
