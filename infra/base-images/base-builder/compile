@@ -215,8 +215,8 @@ CXXFLAGS_SAVED=$CXXFLAGS
 LIB_FUZZING_ENGINE_SAVED=$LIB_FUZZING_ENGINE
 
 if ! [ -z "$NOINST" ]; then
-	export CFLAGS=$(echo $CFLAGS_SAVED | sed "s/-fsanitize.[^ ]*\(\s\|$\)//g")
-	export CXXFLAGS=$(echo $CXXFLAGS_SAVED | sed "s/-fsanitize.[^ ]*\(\s\|$\)//g")
+	export CFLAGS=$(echo $CFLAGS_SAVED | sed "s/-fsanitize.[^ ]*\(\s\|$\)//g" | tr -s ' ')
+	export CXXFLAGS=$(echo $CXXFLAGS_SAVED | sed "s/-fsanitize.[^ ]*\(\s\|$\)//g" | tr -s ' ')
 	export LIB_FUZZING_ENGINE="-pthread /usr/local/lib/clang/14.0.0/lib/linux/libclang_rt.fuzzer-x86_64.a $LIB_FUZZING_ENGINE_SAVED"
 	export AFL_NOOPT=1
 
@@ -227,13 +227,24 @@ if ! [ -z "$NOINST" ]; then
 	echo "---------------------------------------------------------------"
 fi
 
-# Add dwarf version to CFLAGS/CXXFLAGS explicitly
-# Note, this may not result in a target binary that actually contains
-# the selected dwarf version (at least that's the case for the instrumented
-# target, the target without instrumentation seems to contain the selected
-# dwarf version).
-export CFLAGS="-gdwarf-$DWARF $CFLAGS"
-export CXXFLAGS="-gdwarf-$DWARF $CXXFLAGS"
+# Remove ever compile option that starts with "-g" and has probably controls
+# the creation of debug information in some way or another. We want to have
+# full control ourselves!
+export CFLAGS=$(echo $CFLAGS | sed "s/-g[^ ]*//g" | tr -s ' ')
+export CXXFLAGS=$(echo $CXXFLAGS | sed "s/-g[^ ]*//g" | tr -s ' ')
+echo "INFO: Removed every -gxxxx flag."
+echo "---------------------------------------------------------------"
+echo "CFLAGS=$CFLAGS"
+echo "CXXFLAGS=$CXXFLAGS"
+echo "---------------------------------------------------------------"
+
+# Add dwarf version and other debug flags (-gxxxx flags) to CFLAGS/CXXFLAGS
+# explicitly. Note, this may not result in a target binary that actually
+# contains the selected dwarf version (at least that's the case for the
+# instrumented target, the target without instrumentation seems to contain the
+# selected dwarf version).
+export CFLAGS="-gfull -g3 -gdwarf-$DWARF $CFLAGS"
+export CXXFLAGS="-gfull -g3 -gdwarf-$DWARF $CXXFLAGS"
 echo "INFO: Use DWARF$DWARF debug information. New CFLAGS/CXXFLAGS:"
 echo "---------------------------------------------------------------"
 echo "CFLAGS=$CFLAGS"
