@@ -227,6 +227,17 @@ if ! [ -z "$NOINST" ]; then
 	echo "---------------------------------------------------------------"
 fi
 
+if ! [ -z "$GRAPHPLUGIN" ]; then
+	export CFLAGS="-fplugin=/usr/local/lib/libgraph_extraction_plugin.so $CFLAGS"
+	export CXXFLAGS="-fplugin=/usr/local/lib/libgraph_extraction_plugin.so $CXXFLAGS"
+
+	echo "INFO: Build without GraphExtractionPlugin. New CFLAGS/CXXFLAGS:"
+	echo "---------------------------------------------------------------"
+	echo "CFLAGS=$CFLAGS"
+	echo "CXXFLAGS=$CXXFLAGS"
+	echo "---------------------------------------------------------------"
+fi
+
 # Remove ever compile option that starts with "-g" and has probably controls
 # the creation of debug information in some way or another. We want to have
 # full control ourselves!
