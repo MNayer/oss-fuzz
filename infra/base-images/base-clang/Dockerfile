@@ -18,6 +18,11 @@
 
 FROM gcr.io/oss-fuzz-base/base-image
 
+ARG introspector
+ENV INTROSPECTOR_PATCHES=$introspector
+ENV FUZZINTRO_OUTDIR=$SRC
+ENV FUZZ_INTROSPECTOR=$introspector
+
 # Install newer cmake.
 ENV CMAKE_VERSION 3.21.1
 RUN apt-get update && apt-get install -y wget sudo && \
@@ -27,6 +32,12 @@ RUN apt-get update && apt-get install -y wget sudo && \
     rm cmake-$CMAKE_VERSION-Linux-x86_64.sh && \
     SUDO_FORCE_REMOVE=yes apt-get remove --purge -y wget sudo && \
     rm -rf /usr/local/doc/cmake /usr/local/bin/cmake-gui
+
+RUN apt-get update && apt-get install -y git && \
+    git clone https://github.com/ossf/fuzz-introspector.git fuzz-introspector && \
+    cd fuzz-introspector && \
+    git checkout a5b53ca79684f206832fe3388164f66611405bfc && \
+    apt-get remove --purge -y git
 
 COPY checkout_build_install_llvm.sh /root/
 # Keep all steps in the same script to decrease the number of intermediate
@@ -40,8 +51,8 @@ ENV CXX "clang++"
 ENV CCC "clang++"
 
 # Build GraphExtractionPlugin
-COPY graph-extraction /tmp/
-RUN apt-get install -y python3 python3-pip git && \
+COPY graph-extraction /tmp/graph-extraction
+RUN apt-get install -y python3 python3-pip && \
     pip3 install click GitPython && \
 	cd /tmp/graph-extraction && \
 	mkdir build && cd build && \
