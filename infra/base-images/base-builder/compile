@@ -298,6 +298,7 @@ for fpath in $(find $SRC -type f | grep -P "AST[^/]*json$"); do
 	path_checksum=$(echo $fpath | md5sum | tr -s ' ' | cut -d' ' -f1)
 	fname=$(basename $fpath)
 	mv ${fpath} ${OUT}/${path_checksum}_${fname}
+	echo "INFO: Copied AST $fname to OUT directory."
 done
 
 
