@@ -292,11 +292,12 @@ fi
 
 # Move every AST file which may have possibly been created (if the GraphExtractionPlugin
 # was used during compilation) to the OUT dir
-for file in $(find $SRC -type f | grep -P "AST[^/]*json$"); do
+for fpath in $(find $SRC -type f | grep -P "AST[^/]*json$"); do
 	# We may have multiple files with the same name, so we're using
 	# a hash of the path to avoid duplicates in $OUT
-	path_checksum=$(echo $file | md5sum | tr -s ' ' | cut -d' ' -f1)
-	mv ${file} ${OUT}/${path_checksum}_${file}
+	path_checksum=$(echo $fpath | md5sum | tr -s ' ' | cut -d' ' -f1)
+	fname=$(basename $fpath)
+	mv ${fpath} ${OUT}/${path_checksum}_${fname}
 done
 
 
