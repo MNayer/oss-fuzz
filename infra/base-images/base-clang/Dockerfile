@@ -28,10 +28,6 @@ RUN apt-get update && apt-get install -y wget sudo && \
     SUDO_FORCE_REMOVE=yes apt-get remove --purge -y wget sudo && \
     rm -rf /usr/local/doc/cmake /usr/local/bin/cmake-gui
 
-# Install dependencies for GraphExtractionPlugin
-RUN apt-get install -y python3 python3-pip
-RUN pip3 install click GitPython
-
 COPY checkout_build_install_llvm.sh /root/
 # Keep all steps in the same script to decrease the number of intermediate
 # layes in docker file.
@@ -42,6 +38,17 @@ RUN rm /root/checkout_build_install_llvm.sh
 ENV CC "clang"
 ENV CXX "clang++"
 ENV CCC "clang++"
+
+# Build GraphExtractionPlugin
+COPY graph-extraction /tmp/
+RUN apt-get install -y python3 python3-pip git && \
+    pip3 install click GitPython && \
+	cd /tmp/graph-extraction && \
+	mkdir build && cd build && \
+	cmake ../ && \
+	make graph_extraction_plugin && \
+	mv libgraph_extraction_plugin.so /usr/local/lib && \
+	cd /tmp/ && rm -rf graph-extraction
 
 # FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION is described at
 # http://libfuzzer.info#fuzzer-friendly-build-mode
