@@ -28,6 +28,10 @@ RUN apt-get update && apt-get install -y wget sudo && \
     SUDO_FORCE_REMOVE=yes apt-get remove --purge -y wget sudo && \
     rm -rf /usr/local/doc/cmake /usr/local/bin/cmake-gui
 
+# Install dependencies for GraphExtractionPlugin
+RUN apt-get install -y python3 python3-pip
+RUN pip3 install click GitPython
+
 COPY checkout_build_install_llvm.sh /root/
 # Keep all steps in the same script to decrease the number of intermediate
 # layes in docker file.
