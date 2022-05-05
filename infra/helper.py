@@ -271,8 +271,8 @@ def get_parser():  # pylint: disable=too-many-statements
                                     type=int,
                                     default=5,
                                     help='build target using DWARFx debugging information')
-  build_fuzzers_parser.add_argument('--graphplugin',
-                                    dest='graphplugin',
+  build_fuzzers_parser.add_argument('--graph',
+                                    dest='graph_plugin',
                                     action='store_true',
                                     default=False,
                                     help='enable GraphExtractionPlugin when building the target')
@@ -633,7 +633,7 @@ def build_fuzzers_impl(  # pylint: disable=too-many-arguments,too-many-locals,to
     commit,
     noinst,
     dwarf_version,
-    graphplugin,
+    graph_plugin,
     mount_path=None):
   """Builds fuzzers."""
   if not build_image_impl(project, commit):
@@ -667,7 +667,7 @@ def build_fuzzers_impl(  # pylint: disable=too-many-arguments,too-many-locals,to
       'COMMIT=' + commit,
       'NOINST=' + ("1" if noinst else ""),
       'DWARF=%d' % dwarf_version,
-      'GRAPHPLUGIN=' + ("1" if graphplugin else ""),
+      'GRAPHPLUGIN=' + ("1" if graph_plugin else ""),
   ]
 
   _add_oss_fuzz_ci_if_needed(env)
@@ -729,6 +729,7 @@ def build_fuzzers(args):
                             args.commit,
                             args.noinst,
                             args.dwarf_version,
+                            args.graph_plugin,
                             mount_path=args.mount_path)
 
 
