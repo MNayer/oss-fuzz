@@ -82,9 +82,11 @@ class Project:
   def __init__(
       self,
       project_name_or_path,
+      commit='',
       is_external=False,
       build_integration_path=constants.DEFAULT_EXTERNAL_BUILD_INTEGRATION_PATH):
     self.is_external = is_external
+    self.commit = commit
     if self.is_external:
       self.name = os.path.basename(os.path.abspath(project_name_or_path))
       self.path = project_name_or_path
@@ -121,7 +123,7 @@ class Project:
   @property
   def out(self):
     """Returns the out dir for the project. Creates it if needed."""
-    return _get_out_dir(self.name)
+    return _get_out_dir(self.name, self.commit)
 
   @property
   def work(self):
@@ -201,7 +203,7 @@ def parse_args(parser, args=None):
   # Use hacky method for extracting attributes so that ShellTest works.
   # TODO(metzman): Fix this.
   is_external = getattr(parsed_args, 'external', False)
-  parsed_args.project = Project(parsed_args.project, is_external)
+  parsed_args.project = Project(parsed_args.project, parsed_args.commit, is_external)
   return parsed_args
 
 
@@ -432,20 +434,23 @@ def _get_command_string(command):
   return ' '.join(pipes.quote(part) for part in command)
 
 
-def _get_project_build_subdir(project, subdir_name):
+def _get_project_build_subdir(project, subdir_name, commit=''):
   """Creates the |subdir_name| subdirectory of the |project| subdirectory in
   |BUILD_DIR| and returns its path."""
-  directory = os.path.join(BUILD_DIR, subdir_name, project)
+  if commit == '':
+    directory = os.path.join(BUILD_DIR, subdir_name, project)
+  else:
+    directory = os.path.join(BUILD_DIR, subdir_name, '%s_%s' % (project, commit))
   if not os.path.exists(directory):
     os.makedirs(directory)
 
   return directory
 
 
-def _get_out_dir(project=''):
+def _get_out_dir(project='', commit=''):
   """Creates and returns path to /out directory for the given project (if
   specified)."""
-  return _get_project_build_subdir(project, 'out')
+  return _get_project_build_subdir(project, 'out', commit)
 
 
 def _add_architecture_args(parser, choices=None):
