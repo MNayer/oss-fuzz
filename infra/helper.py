@@ -512,9 +512,15 @@ def build_image_impl(project, commit, cache=True, pull=False):
   if not cache:
     build_args.append('--no-cache')
 
+  # Get fully qualified project name
+  if commit == '':
+    fq_project_name = 'gcr.io/%s/%s' % (image_project, image_name)
+  else:
+    fq_project_name = 'gcr.io/%s/%s_%s' % (image_project, image_name, commit)
+
   build_args += [
       '-t',
-      'gcr.io/%s/%s_%s' % (image_project, image_name, commit), '--file', dockerfile_path
+      fq_project_name, '--file', dockerfile_path
   ]
   build_args.append(docker_build_dir)
   return docker_build(build_args)
@@ -646,20 +652,26 @@ def build_fuzzers_impl(  # pylint: disable=too-many-arguments,too-many-locals,to
 
   if clean:
     logging.info('Cleaning existing build artifacts.')
+  
+    # Get fully qualified project name
+    if commit == '':
+      fq_project_name = 'gcr.io/oss-fuzz/%s' % project.name
+    else:
+      fq_project_name = 'gcr.io/oss-fuzz/%s_%s' % (project.name, commit)
 
     # Clean old and possibly conflicting artifacts in project's out directory.
     docker_run([
         '-m', DOCKER_MEMLIMIT,
         '-v',
         '%s:/out' % project.out, '-t',
-        'gcr.io/oss-fuzz/%s_%s' % (project.name, commit), 'timeout', '-k', '120', f'{DOCKER_TIMEOUT}{DOCKER_TIMEOUT_UNIT}', '/bin/bash', '-c', 'rm -rf /out/*'
+        fq_project_name, 'timeout', '-k', '120', f'{DOCKER_TIMEOUT}{DOCKER_TIMEOUT_UNIT}', '/bin/bash', '-c', 'rm -rf /out/*'
     ])
 
     docker_run([
         '-m', DOCKER_MEMLIMIT,
         '-v',
         '%s:/work' % project.work, '-t',
-        'gcr.io/oss-fuzz/%s_%s' % (project.name, commit), 'timeout', '-k', '120', f'{DOCKER_TIMEOUT}{DOCKER_TIMEOUT_UNIT}', '/bin/bash', '-c', 'rm -rf /work/*'
+        fq_project_name, 'timeout', '-k', '120', f'{DOCKER_TIMEOUT}{DOCKER_TIMEOUT_UNIT}', '/bin/bash', '-c', 'rm -rf /work/*'
     ])
 
   else:
@@ -701,12 +713,18 @@ def build_fuzzers_impl(  # pylint: disable=too-many-arguments,too-many-locals,to
           '%s:%s' % (_get_absolute_path(source_path), workdir),
       ]
 
+  # Get fully qualified project name
+  if commit == '':
+    fq_project_name = 'gcr.io/oss-fuzz/%s' % project.name
+  else:
+    fq_project_name = 'gcr.io/oss-fuzz/%s_%s' % (project.name, commit)
+
   command += [
       '-m', DOCKER_MEMLIMIT,
       '-v',
       '%s:/out' % project.out, '-v',
       '%s:/work' % project.work, '-t',
-      'gcr.io/oss-fuzz/%s_%s' % (project.name, commit),
+      fq_project_name,
       'timeout', '-k', '120', '-s', 'KILL', f'{DOCKER_TIMEOUT}{DOCKER_TIMEOUT_UNIT}',
       'compile',
   ]
@@ -1180,11 +1198,17 @@ def shell(args):
         '%s:%s' % (_get_absolute_path(args.source_path), '/src'),
     ])
 
+  # Get fully qualified project name
+  if commit == '':
+    fq_project_name = 'gcr.io/%s/%s' % (image_project, args.project.name)
+  else:
+    fq_project_name = 'gcr.io/%s/%s_%s' % (image_project, args.project.name, args.commit)
+
   run_args.extend([
       '-v',
       '%s:/out' % out_dir, '-v',
       '%s:/work' % args.project.work, '-t',
-      'gcr.io/%s/%s_%s' % (image_project, args.project.name, args.commit), '/bin/bash'
+      fq_project_name, '/bin/bash'
   ])
 
   docker_run(run_args)
