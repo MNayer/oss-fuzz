@@ -24,3 +24,4 @@ coverage_extra_args: >
  -object firefox/libssl3.so
  -object firefox/libmozgtk.so
  -object firefox/libxul.so
+main_repo: 'https://github.com/mozilla/gecko-dev'

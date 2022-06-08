@@ -7,3 +7,4 @@ sanitizers:
   - address
   - memory
   - undefined
+main_repo: 'https://gitlab.labs.nic.cz/knot/knot-dns'

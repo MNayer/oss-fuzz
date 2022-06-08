@@ -9,3 +9,4 @@ sanitizers:
 # Disabled MSAN because of https://github.com/google/oss-fuzz/issues/6294
 #  - memory
  - undefined
+main_repo: 'https://github.com/python/cpython.git'

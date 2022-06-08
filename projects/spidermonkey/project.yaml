@@ -9,3 +9,4 @@ fuzzing_engines:
 sanitizers:
   - address
 blackbox: true
+main_repo: 'https://github.com/mozilla/gecko-dev'

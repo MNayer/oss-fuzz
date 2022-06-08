@@ -10,3 +10,4 @@ sanitizers:
   - address
   - memory
   - undefined
+main_repo: 'https://github.com/llvm/llvm-project.git'

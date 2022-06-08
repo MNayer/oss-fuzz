@@ -4,3 +4,4 @@ primary_contact: "esr@thyrsus.com"
 auto_ccs:
   - "vincent.ulitzsch@live.de"
   - "bshas3@gmail.com"
+main_repo: 'https://git.code.sf.net/p/giflib/code'
