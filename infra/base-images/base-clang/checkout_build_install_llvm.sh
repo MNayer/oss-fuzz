@@ -214,28 +214,29 @@ if [ -n "$INTROSPECTOR_PATCHES" ]; then
 fi
 apt-get autoremove -y
 
-# Delete unneeded parts of LLVM to reduce image size.
-# See https://github.com/google/oss-fuzz/issues/5170
-LLVM_TOOLS_TMPDIR=/tmp/llvm-tools
-mkdir $LLVM_TOOLS_TMPDIR
-# Move binaries with llvm- prefix that we want into LLVM_TOOLS_TMPDIR
-mv \
-  /usr/local/bin/llvm-ar \
-  /usr/local/bin/llvm-as \
-  /usr/local/bin/llvm-config \
-  /usr/local/bin/llvm-cov \
-  /usr/local/bin/llvm-objcopy \
-  /usr/local/bin/llvm-profdata \
-  /usr/local/bin/llvm-ranlib \
-  /usr/local/bin/llvm-symbolizer \
-  /usr/local/bin/llvm-undname \
-  $LLVM_TOOLS_TMPDIR
-# Delete remaining llvm- binaries.
-rm -rf /usr/local/bin/llvm-*
-# Restore the llvm- binaries we want to keep.
-mv $LLVM_TOOLS_TMPDIR/* /usr/local/bin/
-rm -rf $LLVM_TOOLS_TMPDIR
+## Delete unneeded parts of LLVM to reduce image size.
+## See https://github.com/google/oss-fuzz/issues/5170
+#LLVM_TOOLS_TMPDIR=/tmp/llvm-tools
+#mkdir $LLVM_TOOLS_TMPDIR
+## Move binaries with llvm- prefix that we want into LLVM_TOOLS_TMPDIR
+#mv \
+#  /usr/local/bin/llvm-ar \
+#  /usr/local/bin/llvm-as \
+#  /usr/local/bin/llvm-config \
+#  /usr/local/bin/llvm-cov \
+#  /usr/local/bin/llvm-objcopy \
+#  /usr/local/bin/llvm-profdata \
+#  /usr/local/bin/llvm-ranlib \
+#  /usr/local/bin/llvm-symbolizer \
+#  /usr/local/bin/llvm-undname \
+#  $LLVM_TOOLS_TMPDIR
+## Delete remaining llvm- binaries.
+#rm -rf /usr/local/bin/llvm-*
+## Restore the llvm- binaries we want to keep.
+#mv $LLVM_TOOLS_TMPDIR/* /usr/local/bin/
+#rm -rf $LLVM_TOOLS_TMPDIR
 
+<<<<<<< HEAD
 # Remove binaries from LLVM build that we don't need.
 rm -f \
   /usr/local/bin/bugpoint \
@@ -256,11 +257,33 @@ rm -f \
   /usr/local/bin/dsymutil \
   /usr/local/bin/verify-uselistorder \
   /usr/local/bin/clang-format
+=======
+## Remove binaries from LLVM build that we don't need.
+#rm -f \
+#  /usr/local/bin/bugpoint \
+#  /usr/local/bin/llc \
+#  /usr/local/bin/lli \
+#  /usr/local/bin/clang-check \
+#  /usr/local/bin/clang-refactor \
+#  /usr/local/bin/clang-offload-wrapper \
+#  /usr/local/bin/clang-offload-bundler \
+#  /usr/local/bin/clang-check \
+#  /usr/local/bin/clang-refactor \
+#  /usr/local/bin/c-index-test \
+#  /usr/local/bin/clang-rename \
+#  /usr/local/bin/clang-scan-deps \
+#  /usr/local/bin/clang-extdef-mapping \
+#  /usr/local/bin/diagtool \
+#  /usr/local/bin/sanstats \
+#  /usr/local/bin/dsymutil \
+#  /usr/local/bin/verify-uselistorder \
+#  /usr/local/bin/clang-format
+>>>>>>> origin/reproduce
 
 # Remove unneeded clang libs, CMake files from LLVM build, lld libs, and the
 # libraries.
 # Note: we need fuzzer_no_main libraries for atheris. Don't delete.
-rm -rf \
-  /usr/local/lib/libclang* \
-  /usr/local/lib/liblld* \
-  /usr/local/lib/cmake/
+#rm -rf \
+#  /usr/local/lib/libclang* \
+#  /usr/local/lib/liblld* \
+#  /usr/local/lib/cmake/

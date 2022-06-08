@@ -29,9 +29,13 @@ import re
 import subprocess
 import sys
 import templates
+import time
 
 import constants
 
+DOCKER_TIMEOUT = 4          # Timeout value
+DOCKER_MEMLIMIT = "15g"     # Memory limit for each docker container
+DOCKER_TIMEOUT_UNIT = "h"   # Timeout unit
 OSS_FUZZ_DIR = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 BUILD_DIR = os.path.join(OSS_FUZZ_DIR, 'build')
 
@@ -82,9 +86,11 @@ class Project:
   def __init__(
       self,
       project_name_or_path,
+      commit='',
       is_external=False,
       build_integration_path=constants.DEFAULT_EXTERNAL_BUILD_INTEGRATION_PATH):
     self.is_external = is_external
+    self.commit = commit
     if self.is_external:
       self.path = os.path.abspath(project_name_or_path)
       self.name = os.path.basename(self.path)
@@ -121,7 +127,7 @@ class Project:
   @property
   def out(self):
     """Returns the out dir for the project. Creates it if needed."""
-    return _get_out_dir(self.name)
+    return _get_out_dir(self.name, self.commit)
 
   @property
   def work(self):
@@ -207,7 +213,7 @@ def parse_args(parser, args=None):
   # Use hacky method for extracting attributes so that ShellTest works.
   # TODO(metzman): Fix this.
   is_external = getattr(parsed_args, 'external', False)
-  parsed_args.project = Project(parsed_args.project, is_external)
+  parsed_args.project = Project(parsed_args.project, parsed_args.commit, is_external)
   return parsed_args
 
 
@@ -241,6 +247,9 @@ def get_parser():  # pylint: disable=too-many-statements
   build_image_parser.add_argument('--pull',
                                   action='store_true',
                                   help='Pull latest base image.')
+  build_image_parser.add_argument('--commit',
+                                    help='project commit to rollback to',
+                                    default="")
   build_image_parser.add_argument('--cache',
                                   action='store_true',
                                   default=False,
@@ -261,6 +270,24 @@ def get_parser():  # pylint: disable=too-many-statements
   build_fuzzers_parser.add_argument('source_path',
                                     help='path of local source',
                                     nargs='?')
+  build_fuzzers_parser.add_argument('--commit',
+                                    help='project commit to rollback to',
+                                    default="")
+  build_fuzzers_parser.add_argument('--noinst',
+                                    dest='noinst',
+                                    action='store_true',
+                                    default=False,
+                                    help='build target without sanitizers and fuzzing instrumentation (libfuzzer, C/C++)')
+  build_fuzzers_parser.add_argument('--dwarf',
+                                    dest='dwarf_version',
+                                    type=int,
+                                    default=5,
+                                    help='build target using DWARFx debugging information')
+  build_fuzzers_parser.add_argument('--graph',
+                                    dest='graph_plugin',
+                                    action='store_true',
+                                    default=False,
+                                    help='enable GraphExtractionPlugin when building the target')
   build_fuzzers_parser.add_argument('--mount_path',
                                     dest='mount_path',
                                     help='path to mount local source in '
@@ -342,6 +369,9 @@ def get_parser():  # pylint: disable=too-many-statements
   reproduce_parser.add_argument('--valgrind',
                                 action='store_true',
                                 help='run with valgrind')
+  reproduce_parser.add_argument('--commit',
+                                    help='project commit to rollback to',
+                                    default="")
   reproduce_parser.add_argument('project',
                                 help='name of the project or path (external)')
   reproduce_parser.add_argument('fuzzer_name', help='name of the fuzzer')
@@ -354,6 +384,9 @@ def get_parser():  # pylint: disable=too-many-statements
 
   shell_parser = subparsers.add_parser(
       'shell', help='Run /bin/bash within the builder container.')
+  shell_parser.add_argument('--commit',
+                                    help='project commit to rollback to',
+                                    default="")
   shell_parser.add_argument('project',
                             help='name of the project or path (external)')
   shell_parser.add_argument('source_path',
@@ -416,20 +449,23 @@ def _get_command_string(command):
   return ' '.join(pipes.quote(part) for part in command)
 
 
-def _get_project_build_subdir(project, subdir_name):
+def _get_project_build_subdir(project, subdir_name, commit=''):
   """Creates the |subdir_name| subdirectory of the |project| subdirectory in
   |BUILD_DIR| and returns its path."""
-  directory = os.path.join(BUILD_DIR, subdir_name, project)
+  if commit == '':
+    directory = os.path.join(BUILD_DIR, subdir_name, project)
+  else:
+    directory = os.path.join(BUILD_DIR, subdir_name, '%s_%s' % (project, commit))
   if not os.path.exists(directory):
     os.makedirs(directory)
 
   return directory
 
 
-def _get_out_dir(project=''):
+def _get_out_dir(project='', commit=''):
   """Creates and returns path to /out directory for the given project (if
   specified)."""
-  return _get_project_build_subdir(project, 'out')
+  return _get_project_build_subdir(project, 'out', commit)
 
 
 def _add_architecture_args(parser, choices=None):
@@ -468,7 +504,7 @@ def _add_environment_args(parser):
                       help="set environment variable e.g. VAR=value")
 
 
-def build_image_impl(project, cache=True, pull=False):
+def build_image_impl(project, commit, cache=True, pull=False):
   """Builds image."""
   image_name = project.name
 
@@ -491,9 +527,15 @@ def build_image_impl(project, cache=True, pull=False):
   if not cache:
     build_args.append('--no-cache')
 
+  # Get fully qualified project name
+  if commit == '':
+    fq_project_name = 'gcr.io/%s/%s' % (image_project, image_name)
+  else:
+    fq_project_name = 'gcr.io/%s/%s_%s' % (image_project, image_name, commit)
+
   build_args += [
       '-t',
-      'gcr.io/%s/%s' % (image_project, image_name), '--file', dockerfile_path
+      fq_project_name, '--file', dockerfile_path
   ]
   build_args.append(docker_build_dir)
   return docker_build(build_args)
@@ -600,7 +642,7 @@ def build_image(args):
     logging.info('Using cached base images...')
 
   # If build_image is called explicitly, don't use cache.
-  if build_image_impl(args.project, cache=args.cache, pull=pull):
+  if build_image_impl(args.project, args.commit, cache=args.cache, pull=pull):
     return True
 
   return False
@@ -614,25 +656,37 @@ def build_fuzzers_impl(  # pylint: disable=too-many-arguments,too-many-locals,to
     architecture,
     env_to_add,
     source_path,
+    commit,
+    noinst,
+    dwarf_version,
+    graph_plugin,
     mount_path=None):
   """Builds fuzzers."""
-  if not build_image_impl(project):
+  if not build_image_impl(project, commit):
     return False
 
   if clean:
     logging.info('Cleaning existing build artifacts.')
+  
+    # Get fully qualified project name
+    if commit == '':
+      fq_project_name = 'gcr.io/oss-fuzz/%s' % project.name
+    else:
+      fq_project_name = 'gcr.io/oss-fuzz/%s_%s' % (project.name, commit)
 
     # Clean old and possibly conflicting artifacts in project's out directory.
     docker_run([
+        '-m', DOCKER_MEMLIMIT,
         '-v',
         '%s:/out' % project.out, '-t',
-        'gcr.io/oss-fuzz/%s' % project.name, '/bin/bash', '-c', 'rm -rf /out/*'
+        fq_project_name, 'timeout', '-k', '120', f'{DOCKER_TIMEOUT}{DOCKER_TIMEOUT_UNIT}', '/bin/bash', '-c', 'rm -rf /out/*'
     ])
 
     docker_run([
+        '-m', DOCKER_MEMLIMIT,
         '-v',
         '%s:/work' % project.work, '-t',
-        'gcr.io/oss-fuzz/%s' % project.name, '/bin/bash', '-c', 'rm -rf /work/*'
+        fq_project_name, 'timeout', '-k', '120', f'{DOCKER_TIMEOUT}{DOCKER_TIMEOUT_UNIT}', '/bin/bash', '-c', 'rm -rf /work/*'
     ])
 
   else:
@@ -641,6 +695,11 @@ def build_fuzzers_impl(  # pylint: disable=too-many-arguments,too-many-locals,to
       'FUZZING_ENGINE=' + engine,
       'SANITIZER=' + sanitizer,
       'ARCHITECTURE=' + architecture,
+      'PROJECT=' + project.name,
+      'COMMIT=' + commit,
+      'NOINST=' + ("1" if noinst else ""),
+      'DWARF=%d' % dwarf_version,
+      'GRAPHPLUGIN=' + ("1" if graph_plugin else ""),
   ]
 
   _add_oss_fuzz_ci_if_needed(env)
@@ -669,14 +728,26 @@ def build_fuzzers_impl(  # pylint: disable=too-many-arguments,too-many-locals,to
           '%s:%s' % (_get_absolute_path(source_path), workdir),
       ]
 
+  # Get fully qualified project name
+  if commit == '':
+    fq_project_name = 'gcr.io/oss-fuzz/%s' % project.name
+  else:
+    fq_project_name = 'gcr.io/oss-fuzz/%s_%s' % (project.name, commit)
+
   command += [
+      '-m', DOCKER_MEMLIMIT,
       '-v',
       '%s:/out' % project.out, '-v',
       '%s:/work' % project.work, '-t',
-      'gcr.io/oss-fuzz/%s' % project.name
+      fq_project_name,
+      'timeout', '-k', '120', '-s', 'KILL', f'{DOCKER_TIMEOUT}{DOCKER_TIMEOUT_UNIT}',
+      'compile',
   ]
+  print(command)
 
+  print("compile", time.time())
   result = docker_run(command)
+  print("compile", time.time())
   if not result:
     logging.error('Building fuzzers failed.')
     return False
@@ -693,6 +764,10 @@ def build_fuzzers(args):
                             args.architecture,
                             args.e,
                             args.source_path,
+                            args.commit,
+                            args.noinst,
+                            args.dwarf_version,
+                            args.graph_plugin,
                             mount_path=args.mount_path)
 
 
@@ -729,7 +804,10 @@ def check_build(args):
     env += args.e
 
   run_args = _env_to_docker_args(env) + [
-      '-v', '%s:/out' % args.project.out, '-t', BASE_RUNNER_IMAGE
+      '-m', DOCKER_MEMLIMIT,
+      '-v',
+      '%s:/out' % args.project.out, '-t', 'gcr.io/oss-fuzz-base/base-runner',
+      'timeout', '-k', '120', f'{DOCKER_TIMEOUT}{DOCKER_TIMEOUT_UNIT}',
   ]
 
   if args.fuzzer_name:
@@ -891,10 +969,12 @@ def coverage(args):
     run_args.extend(['-v', '%s:/corpus' % args.project.corpus])
 
   run_args.extend([
+      '-m', DOCKER_MEMLIMIT,
       '-v',
       '%s:/out' % args.project.out,
       '-t',
-      BASE_RUNNER_IMAGE,
+      'gcr.io/oss-fuzz-base/base-runner',
+      'timeout', '-k', '120', f'{DOCKER_TIMEOUT}{DOCKER_TIMEOUT_UNIT}',
   ])
 
   run_args.append('coverage')
@@ -941,10 +1021,12 @@ def run_fuzzer(args):
     ])
 
   run_args.extend([
+      '-m', DOCKER_MEMLIMIT,
       '-v',
       '%s:/out' % args.project.out,
       '-t',
-      BASE_RUNNER_IMAGE,
+      'gcr.io/oss-fuzz-base/base-runner',
+      'timeout', '-k', '120', f'{DOCKER_TIMEOUT}{DOCKER_TIMEOUT_UNIT}',
       'run_fuzzer',
       args.fuzzer_name,
   ] + args.fuzzer_args)
@@ -995,6 +1077,7 @@ def reproduce_impl(  # pylint: disable=too-many-arguments
       '%s:/testcase' % _get_absolute_path(testcase_path),
       '-t',
       'gcr.io/oss-fuzz-base/%s' % image_name,
+      'timeout', '-k', '120', f'{DOCKER_TIMEOUT}{DOCKER_TIMEOUT_UNIT}',
       'reproduce',
       fuzzer_name,
       '-runs=100',
@@ -1130,11 +1213,17 @@ def shell(args):
         '%s:%s' % (_get_absolute_path(args.source_path), '/src'),
     ])
 
+  # Get fully qualified project name
+  if commit == '':
+    fq_project_name = 'gcr.io/%s/%s' % (image_project, args.project.name)
+  else:
+    fq_project_name = 'gcr.io/%s/%s_%s' % (image_project, args.project.name, args.commit)
+
   run_args.extend([
       '-v',
       '%s:/out' % out_dir, '-v',
       '%s:/work' % args.project.work, '-t',
-      'gcr.io/%s/%s' % (image_project, args.project.name), '/bin/bash'
+      fq_project_name, '/bin/bash'
   ])
 
   docker_run(run_args)

@@ -17,6 +17,46 @@
 
 echo "---------------------------------------------------------------"
 
+# Based on https://github.com/aflgo/oss-fuzz.git
+# Since we can't rely on the cloned source code directory
+# to be called exactly like the project (e. g.
+# $SRC/$PROJECT with PROJECT=project.name), we enter each subdirectory
+# of $SRC and try to checkout the commit.
+if ! [ -z "$COMMIT" ]; then
+	echo "INFO: Rollback to commit $COMMIT of project $PROJECT"
+	directories=$(find $SRC -maxdepth 1 -type d)
+	checkout_success=0
+	for directory in $directories; do
+		pushd $directory >/dev/null  
+		if [ -d .git ]; then         
+			if [ -f $(git rev-parse --git-dir)/shallow ]; then
+				echo "INFO: git unshallow $directory of project $PROJECT"
+				git pull --unshallow
+			fi
+			echo "INFO: Try to checkout $COMMIT of project $PROJECT in directory $directory"
+			if git checkout $COMMIT; then
+				echo "INFO: checked out commit $COMMIT of project $PROJECT"
+				checkout_success=1
+				popd >/dev/null
+				break
+			fi
+			echo "INFO: checkout $COMMIT of project $PROJECT in directory $directory failed"
+			#git checkout $COMMIT
+			#if [ $? -eq 0 ]; then
+			#	echo "INFO: checkout commit $COMMIT of project $PROJECT"
+			#	checkout_success=1
+			#	break
+			#fi
+		fi
+		popd >/dev/null
+	done
+	if [ $checkout_success -eq 0 ]; then
+		echo "ERROR: Rollback to commit $COMMIT of project $PROJECT failed."
+		exit 1
+	fi
+fi
+
+
 if [ "$SANITIZER" = "dataflow" ] && [ "$FUZZING_ENGINE" != "dataflow" ]; then
   echo "ERROR: 'dataflow' sanitizer can be used with 'dataflow' engine only."
   exit 1
@@ -126,7 +166,7 @@ if [ "$FUZZING_LANGUAGE" = "python" ]; then
 fi
 
 # Copy latest llvm-symbolizer in $OUT for stack symbolization.
-cp $(which llvm-symbolizer) $OUT/
+#cp $(which llvm-symbolizer) $OUT/
 
 # Copy Jazzer to $OUT if needed.
 if [ "$FUZZING_LANGUAGE" = "jvm" ]; then
@@ -183,6 +223,58 @@ if [ "$FUZZING_LANGUAGE" = "rust" ]; then
   cp -r /rust/rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/ /rustc/$rustch/
 fi
 
+CFLAGS_SAVED=$CFLAGS
+CXXFLAGS_SAVED=$CXXFLAGS
+LIB_FUZZING_ENGINE_SAVED=$LIB_FUZZING_ENGINE
+
+if ! [ -z "$NOINST" ]; then
+	export CFLAGS=$(echo $CFLAGS_SAVED | sed "s/-fsanitize.[^ ]*\(\s\|$\)//g" | tr -s ' ')
+	export CXXFLAGS=$(echo $CXXFLAGS_SAVED | sed "s/-fsanitize.[^ ]*\(\s\|$\)//g" | tr -s ' ')
+	export LIB_FUZZING_ENGINE="-pthread /usr/local/lib/clang/14.0.0/lib/linux/libclang_rt.fuzzer-x86_64.a $LIB_FUZZING_ENGINE_SAVED"
+	export AFL_NOOPT=1
+
+	echo "INFO: Build without instrumentation. New CFLAGS/CXXFLAGS:"
+	echo "---------------------------------------------------------------"
+	echo "CFLAGS=$CFLAGS"
+	echo "CXXFLAGS=$CXXFLAGS"
+	echo "---------------------------------------------------------------"
+fi
+
+if ! [ -z "$GRAPHPLUGIN" ]; then
+	export CFLAGS="-fplugin=/usr/local/lib/libgraph_extraction_plugin.so $CFLAGS"
+	export CXXFLAGS="-fplugin=/usr/local/lib/libgraph_extraction_plugin.so $CXXFLAGS"
+
+	echo "INFO: Build without GraphExtractionPlugin. New CFLAGS/CXXFLAGS:"
+	echo "---------------------------------------------------------------"
+	echo "CFLAGS=$CFLAGS"
+	echo "CXXFLAGS=$CXXFLAGS"
+	echo "---------------------------------------------------------------"
+fi
+
+# Remove ever compile option that starts with "-g" and has probably controls
+# the creation of debug information in some way or another. We want to have
+# full control ourselves!
+export CFLAGS=$(echo $CFLAGS | sed "s/-g[^ ]*//g" | tr -s ' ')
+export CXXFLAGS=$(echo $CXXFLAGS | sed "s/-g[^ ]*//g" | tr -s ' ')
+echo "INFO: Removed every -gxxxx flag."
+echo "---------------------------------------------------------------"
+echo "CFLAGS=$CFLAGS"
+echo "CXXFLAGS=$CXXFLAGS"
+echo "---------------------------------------------------------------"
+
+# Add dwarf version and other debug flags (-gxxxx flags) to CFLAGS/CXXFLAGS
+# explicitly. Note, this may not result in a target binary that actually
+# contains the selected dwarf version (at least that's the case for the
+# instrumented target, the target without instrumentation seems to contain the
+# selected dwarf version).
+export CFLAGS="-gfull -g3 -gdwarf-$DWARF $CFLAGS"
+export CXXFLAGS="-gfull -g3 -gdwarf-$DWARF $CXXFLAGS"
+echo "INFO: Use DWARF$DWARF debug information. New CFLAGS/CXXFLAGS:"
+echo "---------------------------------------------------------------"
+echo "CFLAGS=$CFLAGS"
+echo "CXXFLAGS=$CXXFLAGS"
+echo "---------------------------------------------------------------"
+
 if [ "${BUILD_UID-0}" -ne "0" ]; then
   adduser -u $BUILD_UID --disabled-password --gecos '' builder
   chown -R builder $SRC $OUT $WORK
@@ -199,6 +291,7 @@ else
   fi
 fi
 
+<<<<<<< HEAD
 if [ "$SANITIZER" = "introspector" ]; then
   unset CXXFLAGS
   unset CFLAGS
@@ -232,9 +325,31 @@ if [ "$SANITIZER" = "introspector" ]; then
   python3 /fuzz-introspector/post-processing/main.py report $REPORT_ARGS
 
   cp -rf $SRC/inspector $OUT/inspector
+=======
+if ! [ -z "$NOINST" ]; then
+	export CFLAGS=$CFLAGS_SAVED
+	export CXXFLAGS=$CXXFLAGS_SAVED
+	export LIB_FUZZING_ENGINE=$LIB_FUZZING_ENGINE_SAVED
+	unset AFL_NOOPT
+>>>>>>> origin/reproduce
 fi
 
 if [[ "$FUZZING_ENGINE" = "dataflow" ]]; then
   # Remove seed corpus as it can be huge but is not needed for a dataflow build.
   rm -f $OUT/*.zip
 fi
+
+# Move every AST file which may have possibly been created (if the GraphExtractionPlugin
+# was used during compilation) to the OUT dir
+for fpath in $(find $SRC -type f | grep -P "AST[^/]*json$"); do
+	# We may have multiple files with the same name, so we're using
+	# a hash of the path to avoid duplicates in $OUT
+	path_checksum=$(echo $fpath | md5sum | tr -s ' ' | cut -d' ' -f1)
+	fname=$(basename $fpath)
+	mv ${fpath} ${OUT}/${path_checksum}_${fname}
+	echo "INFO: Copied AST $fname to OUT directory."
+done
+
+
+# So that tracebacks will not be symbolized:
+mv /usr/local/bin/llvm-symbolizer /usr/local/bin/llvm-symbolizer.bak
