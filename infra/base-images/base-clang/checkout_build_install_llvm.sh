@@ -236,28 +236,6 @@ apt-get autoremove -y
 #mv $LLVM_TOOLS_TMPDIR/* /usr/local/bin/
 #rm -rf $LLVM_TOOLS_TMPDIR
 
-<<<<<<< HEAD
-# Remove binaries from LLVM build that we don't need.
-rm -f \
-  /usr/local/bin/bugpoint \
-  /usr/local/bin/llc \
-  /usr/local/bin/lli \
-  /usr/local/bin/clang-check \
-  /usr/local/bin/clang-refactor \
-  /usr/local/bin/clang-offload-wrapper \
-  /usr/local/bin/clang-offload-bundler \
-  /usr/local/bin/clang-check \
-  /usr/local/bin/clang-refactor \
-  /usr/local/bin/c-index-test \
-  /usr/local/bin/clang-rename \
-  /usr/local/bin/clang-scan-deps \
-  /usr/local/bin/clang-extdef-mapping \
-  /usr/local/bin/diagtool \
-  /usr/local/bin/sanstats \
-  /usr/local/bin/dsymutil \
-  /usr/local/bin/verify-uselistorder \
-  /usr/local/bin/clang-format
-=======
 ## Remove binaries from LLVM build that we don't need.
 #rm -f \
 #  /usr/local/bin/bugpoint \
@@ -278,7 +256,6 @@ rm -f \
 #  /usr/local/bin/dsymutil \
 #  /usr/local/bin/verify-uselistorder \
 #  /usr/local/bin/clang-format
->>>>>>> origin/reproduce
 
 # Remove unneeded clang libs, CMake files from LLVM build, lld libs, and the
 # libraries.
