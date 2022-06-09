@@ -291,7 +291,6 @@ else
   fi
 fi
 
-<<<<<<< HEAD
 if [ "$SANITIZER" = "introspector" ]; then
   unset CXXFLAGS
   unset CFLAGS
@@ -325,13 +324,13 @@ if [ "$SANITIZER" = "introspector" ]; then
   python3 /fuzz-introspector/post-processing/main.py report $REPORT_ARGS
 
   cp -rf $SRC/inspector $OUT/inspector
-=======
+fi
+
 if ! [ -z "$NOINST" ]; then
 	export CFLAGS=$CFLAGS_SAVED
 	export CXXFLAGS=$CXXFLAGS_SAVED
 	export LIB_FUZZING_ENGINE=$LIB_FUZZING_ENGINE_SAVED
 	unset AFL_NOOPT
->>>>>>> origin/reproduce
 fi
 
 if [[ "$FUZZING_ENGINE" = "dataflow" ]]; then
