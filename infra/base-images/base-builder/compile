@@ -228,10 +228,41 @@ CXXFLAGS_SAVED=$CXXFLAGS
 LIB_FUZZING_ENGINE_SAVED=$LIB_FUZZING_ENGINE
 
 if ! [ -z "$NOINST" ]; then
-	export CFLAGS=$(echo $CFLAGS_SAVED | sed "s/-fsanitize.[^ ]*\(\s\|$\)//g" | tr -s ' ')
-	export CXXFLAGS=$(echo $CXXFLAGS_SAVED | sed "s/-fsanitize.[^ ]*\(\s\|$\)//g" | tr -s ' ')
-	export LIB_FUZZING_ENGINE="-pthread /usr/local/lib/clang/14.0.0/lib/linux/libclang_rt.fuzzer-x86_64.a $LIB_FUZZING_ENGINE_SAVED"
+	# Remove every -fsanitize flag except for those, that contain the word fuzzer.
+	# Compiling with these flags would yield a program which only contains the coverage
+	# instrumentation, but no other instrumentation (like asan, etc.).
+	# The coverage instrumentation for -fsanitize=fuzzer and fuzzer-no-link consists of:
+	#	CoverageFeatures |= 
+	#		CoverageInline8bitCounters |
+	#		CoverageIndirCall |
+	#		CoverageTraceCmp |
+	#		CoveragePCTable |
+	#		CoverageStackDepth
+	# (see l. 450 in llvm-project/clang/lib/Driver/SanitizerArgs.cpp)
+	# These instrumentations can be disabled by the following compilation flags:
+	#	-fno-sanitize-coverage=inline-8bit-counters
+	#	-fno-sanitize-coverage=indirect-calls
+	#	-fno-sanitize-coverage=trace-cmp
+	#	-fno-sanitize-coverage=pc-table
+	#	-fno-sanitize-coverage=stack-depth
+
+	export CFLAGS=$(echo $CFLAGS_SAVED | sed 's/ /\n/g' | sed '/^-fsanitize[^ =]*=fuzzer[^ ]*$/!s/-fsanitize[^ =]*=[^ ]*$//' | sed '/^$/d' | tr '\n' ' ' | sed 's/ $//')
+	export CXXFLAGS=$(echo $CXXFLAGS_SAVED | sed 's/ /\n/g' | sed '/^-fsanitize[^ =]*=fuzzer[^ ]*$/!s/-fsanitize[^ =]*=[^ ]*$//' | sed '/^$/d' | tr '\n' ' ' | sed 's/ $//')
+	export LIB_FUZZING_ENGINE=$(echo $LIB_FUZZING_ENGINE_SAVED | sed 's/ /\n/g' | sed '/^-fsanitize[^ =]*=fuzzer[^ ]*$/!s/-fsanitize[^ =]*=[^ ]*$//' | sed '/^$/d' | tr '\n' ' ' | sed 's/ $//')
+
+	#export CFLAGS=$(echo $CFLAGS_SAVED | sed "s/-fsanitize.[^ ]*\(\s\|$\)//g" | tr -s ' ')
+	#export CXXFLAGS=$(echo $CXXFLAGS_SAVED | sed "s/-fsanitize.[^ ]*\(\s\|$\)//g" | tr -s ' ')
+	#export LIB_FUZZING_ENGINE=$(echo $LIB_FUZZING_ENGINE_SAVED | sed "s/-fsanitize.[^ ]*\(\s\|$\)//g" | tr -s ' ')
+	#export LIB_FUZZING_ENGINE="-pthread /usr/local/lib/clang/14.0.0/lib/linux/libclang_rt.fuzzer-x86_64.a $LIB_FUZZING_ENGINE_SAVED"
+	# THIS ORIG
+	#export CFLAGS="$CFLAGS -fno-sanitize-coverage=indirect-calls -fno-sanitize-coverage=trace-cmp -fno-sanitize-coverage=inline-8bit-counters -fno-sanitize-coverage=pc-table -fno-sanitize-coverage=stack-depth"
+	#export CXXFLAGS="$CXXFLAGS -fno-sanitize-coverage=indirect-calls -fno-sanitize-coverage=trace-cmp -fno-sanitize-coverage=inline-8bit-counters -fno-sanitize-coverage=pc-table -fno-sanitize-coverage=stack-depth"
+
+	export CFLAGS="$CFLAGS -fno-sanitize-coverage=indirect-calls -fno-sanitize-coverage=inline-8bit-counters -fno-sanitize-coverage=pc-table -fno-sanitize-coverage=stack-depth"
+	export CXXFLAGS="$CXXFLAGS -fno-sanitize-coverage=indirect-calls -fno-sanitize-coverage=inline-8bit-counters -fno-sanitize-coverage=pc-table -fno-sanitize-coverage=stack-depth"
+
 	export AFL_NOOPT=1
+
 
 	echo "INFO: Build without instrumentation. New CFLAGS/CXXFLAGS:"
 	echo "---------------------------------------------------------------"
