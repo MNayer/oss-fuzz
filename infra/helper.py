@@ -273,6 +273,9 @@ def get_parser():  # pylint: disable=too-many-statements
   build_fuzzers_parser.add_argument('--commit',
                                     help='project commit to rollback to',
                                     default="")
+  build_fuzzers_parser.add_argument('--fuzztarget',
+                                    help='fuzzing target to be built',
+                                    default="")
   build_fuzzers_parser.add_argument('--noinst',
                                     dest='noinst',
                                     action='store_true',
@@ -657,6 +660,7 @@ def build_fuzzers_impl(  # pylint: disable=too-many-arguments,too-many-locals,to
     env_to_add,
     source_path,
     commit,
+    fuzztarget,
     noinst,
     dwarf_version,
     graph_plugin,
@@ -697,6 +701,7 @@ def build_fuzzers_impl(  # pylint: disable=too-many-arguments,too-many-locals,to
       'ARCHITECTURE=' + architecture,
       'PROJECT=' + project.name,
       'COMMIT=' + commit,
+      'FUZZTARGET=' + fuzztarget,
       'NOINST=' + ("1" if noinst else ""),
       'DWARF=%d' % dwarf_version,
       'GRAPHPLUGIN=' + ("1" if graph_plugin else ""),
@@ -765,6 +770,7 @@ def build_fuzzers(args):
                             args.e,
                             args.source_path,
                             args.commit,
+                            args.fuzztarget,
                             args.noinst,
                             args.dwarf_version,
                             args.graph_plugin,

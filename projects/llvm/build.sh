@@ -22,22 +22,28 @@ if [[ -n "${OSS_FUZZ_CI-}" && "$SANITIZER" = coverage ]]; then
   exit 0
 fi
 
-if [ -n "${OSS_FUZZ_CI-}" ]; then
-  readonly FUZZERS=(\
-    clang-fuzzer\
-    llvm-itanium-demangle-fuzzer\
-  )
+if ! [ -z "$FUZZTARGET" ]; then
+	readonly FUZZERS=( \
+		$FUZZTARGET \
+	)
 else
-  readonly FUZZERS=( \
-    clang-fuzzer \
-    clang-format-fuzzer \
-    clang-objc-fuzzer \
-    clangd-fuzzer \
-    llvm-itanium-demangle-fuzzer \
-    llvm-microsoft-demangle-fuzzer \
-    llvm-dwarfdump-fuzzer \
-    llvm-special-case-list-fuzzer \
-  )
+	if [ -n "${OSS_FUZZ_CI-}" ]; then
+	  readonly FUZZERS=(\
+		clang-fuzzer\
+		llvm-itanium-demangle-fuzzer\
+	  )
+	else
+	  readonly FUZZERS=( \
+		clang-fuzzer \
+		clang-format-fuzzer \
+		clang-objc-fuzzer \
+		clangd-fuzzer \
+		llvm-itanium-demangle-fuzzer \
+		llvm-microsoft-demangle-fuzzer \
+		llvm-dwarfdump-fuzzer \
+		llvm-special-case-list-fuzzer \
+	  )
+	fi
 fi
 
 case $SANITIZER in
@@ -74,5 +80,6 @@ for fuzzer in "${FUZZERS[@]}"; do
   cp bin/$fuzzer $OUT
 done
 
-zip -j "${OUT}/clang-objc-fuzzer_seed_corpus.zip"  $SRC/$LLVM/../clang/tools/clang-fuzzer/corpus_examples/objc/*
-zip -j "${OUT}/clangd-fuzzer_seed_corpus.zip"  $SRC/$LLVM/../clang-tools-extra/clangd/test/*
+# We don't want to fuzz, so we don't need a seed corpus.
+#zip -j "${OUT}/clang-objc-fuzzer_seed_corpus.zip"  $SRC/$LLVM/../clang/tools/clang-fuzzer/corpus_examples/objc/*
+#zip -j "${OUT}/clangd-fuzzer_seed_corpus.zip"  $SRC/$LLVM/../clang-tools-extra/clangd/test/*
