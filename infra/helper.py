@@ -281,6 +281,11 @@ def get_parser():  # pylint: disable=too-many-statements
                                     action='store_true',
                                     default=False,
                                     help='build target without sanitizers and fuzzing instrumentation (libfuzzer, C/C++)')
+  build_fuzzers_parser.add_argument('--savesource',
+                                    dest='savesource',
+                                    action='store_true',
+                                    default=False,
+                                    help='save the source code file (C/C++) in output directory')
   build_fuzzers_parser.add_argument('--dwarf',
                                     dest='dwarf_version',
                                     type=int,
@@ -662,6 +667,7 @@ def build_fuzzers_impl(  # pylint: disable=too-many-arguments,too-many-locals,to
     commit,
     fuzztarget,
     noinst,
+    savesource,
     dwarf_version,
     graph_plugin,
     mount_path=None):
@@ -703,6 +709,7 @@ def build_fuzzers_impl(  # pylint: disable=too-many-arguments,too-many-locals,to
       'COMMIT=' + commit,
       'FUZZTARGET=' + fuzztarget,
       'NOINST=' + ("1" if noinst else ""),
+      'SAVESOURCE=' + ("1" if savesource else ""),
       'DWARF=%d' % dwarf_version,
       'GRAPHPLUGIN=' + ("1" if graph_plugin else ""),
   ]
@@ -772,6 +779,7 @@ def build_fuzzers(args):
                             args.commit,
                             args.fuzztarget,
                             args.noinst,
+                            args.savesource,
                             args.dwarf_version,
                             args.graph_plugin,
                             mount_path=args.mount_path)
