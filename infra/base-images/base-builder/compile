@@ -250,14 +250,6 @@ if ! [ -z "$NOINST" ]; then
 	export CXXFLAGS=$(echo $CXXFLAGS_SAVED | sed 's/ /\n/g' | sed '/^-fsanitize[^ =]*=fuzzer[^ ]*$/!s/-fsanitize[^ =]*=[^ ]*$//' | sed '/^$/d' | tr '\n' ' ' | sed 's/ $//')
 	export LIB_FUZZING_ENGINE=$(echo $LIB_FUZZING_ENGINE_SAVED | sed 's/ /\n/g' | sed '/^-fsanitize[^ =]*=fuzzer[^ ]*$/!s/-fsanitize[^ =]*=[^ ]*$//' | sed '/^$/d' | tr '\n' ' ' | sed 's/ $//')
 
-	#export CFLAGS=$(echo $CFLAGS_SAVED | sed "s/-fsanitize.[^ ]*\(\s\|$\)//g" | tr -s ' ')
-	#export CXXFLAGS=$(echo $CXXFLAGS_SAVED | sed "s/-fsanitize.[^ ]*\(\s\|$\)//g" | tr -s ' ')
-	#export LIB_FUZZING_ENGINE=$(echo $LIB_FUZZING_ENGINE_SAVED | sed "s/-fsanitize.[^ ]*\(\s\|$\)//g" | tr -s ' ')
-	#export LIB_FUZZING_ENGINE="-pthread /usr/local/lib/clang/14.0.0/lib/linux/libclang_rt.fuzzer-x86_64.a $LIB_FUZZING_ENGINE_SAVED"
-	# THIS ORIG
-	#export CFLAGS="$CFLAGS -fno-sanitize-coverage=indirect-calls -fno-sanitize-coverage=trace-cmp -fno-sanitize-coverage=inline-8bit-counters -fno-sanitize-coverage=pc-table -fno-sanitize-coverage=stack-depth"
-	#export CXXFLAGS="$CXXFLAGS -fno-sanitize-coverage=indirect-calls -fno-sanitize-coverage=trace-cmp -fno-sanitize-coverage=inline-8bit-counters -fno-sanitize-coverage=pc-table -fno-sanitize-coverage=stack-depth"
-
 	export CFLAGS="$CFLAGS -fno-sanitize-coverage=indirect-calls -fno-sanitize-coverage=inline-8bit-counters -fno-sanitize-coverage=pc-table -fno-sanitize-coverage=stack-depth"
 	export CXXFLAGS="$CXXFLAGS -fno-sanitize-coverage=indirect-calls -fno-sanitize-coverage=inline-8bit-counters -fno-sanitize-coverage=pc-table -fno-sanitize-coverage=stack-depth"
 
@@ -276,6 +268,17 @@ if ! [ -z "$GRAPHPLUGIN" ]; then
 	export CXXFLAGS="-fplugin=/usr/local/lib/libgraph_extraction_plugin.so $CXXFLAGS"
 
 	echo "INFO: Build without GraphExtractionPlugin. New CFLAGS/CXXFLAGS:"
+	echo "---------------------------------------------------------------"
+	echo "CFLAGS=$CFLAGS"
+	echo "CXXFLAGS=$CXXFLAGS"
+	echo "---------------------------------------------------------------"
+fi
+
+if ! [ -z "$SAVETEMPS" ]; then
+	export CFLAGS="-save-temps=obj $CFLAGS"
+	export CXXFLAGS="-save-temps=obj $CXXFLAGS"
+
+	echo "INFO: Save temporary compilation files. New CFLAGS/CXXFLAGS:"
 	echo "---------------------------------------------------------------"
 	echo "CFLAGS=$CFLAGS"
 	echo "CXXFLAGS=$CXXFLAGS"
@@ -380,12 +383,18 @@ for fpath in $(find $SRC -type f | grep -P "AST[^/]*json$"); do
 	echo "INFO: Copied AST $fname to OUT directory."
 done
 
-
 # Save every C/C++ source file
-if ! [ -z "SAVESOURCE" ]; then
+if ! [ -z "$SAVESOURCE" ]; then
 	regex="\.c$\|\.cc$\|\.cpp$\|\.cxx$\|\.h$\|\.hpp$\|\.hxx$"
 	tar -czvf source.tar.gz $(find $SRC -type f | grep -i "$regex")
 	mv source.tar.gz ${OUT}/
+fi
+
+# Save every preprocessed C/C++ source file
+if ! [ -z "$SAVETEMPS" ]; then
+	regex="\.i$\|\.ii$"
+	tar -czvf preprocessed.tar.gz $(find $SRC -type f | grep -i "$regex")
+	mv preprocessed.tar.gz ${OUT}/
 fi
 
 
