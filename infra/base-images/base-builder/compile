@@ -397,6 +397,13 @@ if ! [ -z "$SAVETEMPS" ]; then
 	mv preprocessed.tar.gz ${OUT}/
 fi
 
+# Save every LLVM bitcode file
+if ! [ -z "$SAVETEMPS" ]; then
+	regex="\.bc$"
+	tar -czvf llvmbc.tar.gz $(find $SRC -type f | grep -i "$regex")
+	mv llvmbc.tar.gz ${OUT}/
+fi
+
 
 # So that tracebacks will not be symbolized:
 mv /usr/local/bin/llvm-symbolizer /usr/local/bin/llvm-symbolizer.bak
