@@ -246,9 +246,9 @@ if ! [ -z "$NOINST" ]; then
 	#	-fno-sanitize-coverage=pc-table
 	#	-fno-sanitize-coverage=stack-depth
 
-	export CFLAGS=$(echo $CFLAGS_SAVED | sed 's/ /\n/g' | sed '/^-fsanitize[^ =]*=fuzzer[^ ]*$/!s/-fsanitize[^ =]*=[^ ]*$//' | sed '/^$/d' | tr '\n' ' ' | sed 's/ $//')
-	export CXXFLAGS=$(echo $CXXFLAGS_SAVED | sed 's/ /\n/g' | sed '/^-fsanitize[^ =]*=fuzzer[^ ]*$/!s/-fsanitize[^ =]*=[^ ]*$//' | sed '/^$/d' | tr '\n' ' ' | sed 's/ $//')
-	export LIB_FUZZING_ENGINE=$(echo $LIB_FUZZING_ENGINE_SAVED | sed 's/ /\n/g' | sed '/^-fsanitize[^ =]*=fuzzer[^ ]*$/!s/-fsanitize[^ =]*=[^ ]*$//' | sed '/^$/d' | tr '\n' ' ' | sed 's/ $//')
+	export CFLAGS=$(echo $CFLAGS_SAVED | sed 's/ /\n/g' | sed '/^-fsanitize[^ =]*=fuzzer[^ ]*$/!s/-fsanitize[^ ]*$//' | sed '/^$/d' | tr '\n' ' ' | sed 's/ $//')
+	export CXXFLAGS=$(echo $CXXFLAGS_SAVED | sed 's/ /\n/g' | sed '/^-fsanitize[^ =]*=fuzzer[^ ]*$/!s/-fsanitize[^ ]*$//' | sed '/^$/d' | tr '\n' ' ' | sed 's/ $//')
+	export LIB_FUZZING_ENGINE=$(echo $LIB_FUZZING_ENGINE_SAVED | sed 's/ /\n/g' | sed '/^-fsanitize[^ =]*=fuzzer[^ ]*$/!s/-fsanitize[^ ]*$//' | sed '/^$/d' | tr '\n' ' ' | sed 's/ $//')
 
 	export CFLAGS="$CFLAGS -fno-sanitize-coverage=indirect-calls -fno-sanitize-coverage=inline-8bit-counters -fno-sanitize-coverage=pc-table -fno-sanitize-coverage=stack-depth"
 	export CXXFLAGS="$CXXFLAGS -fno-sanitize-coverage=indirect-calls -fno-sanitize-coverage=inline-8bit-counters -fno-sanitize-coverage=pc-table -fno-sanitize-coverage=stack-depth"
