@@ -191,67 +191,83 @@ for c in $CONDITIONALS ; do
   mv tools/target_dec_${symbol}_fuzzer $OUT/${fuzzer_name}
 done
 
-# Build fuzzer for demuxer
-fuzzer_name=ffmpeg_DEMUXER_fuzzer
-echo -en "[libfuzzer]\nmax_len = 1000000\n" > $OUT/${fuzzer_name}.options
-make tools/target_dem_fuzzer
-mv tools/target_dem_fuzzer $OUT/${fuzzer_name}
+# Get timestamp of currently checked out ffmpeg git commit
+ffmpeg_time=$(cd $SRC/ffmpeg; git log --format=%ad --date=raw | head -n1 | cut -d' ' -f1)
+min_time=$(date -d"2019-06-03" +%s)
+if [ $ffmpeg_time -gt $min_time ]; then
+	# Build fuzzer for demuxer
+	fuzzer_name=ffmpeg_DEMUXER_fuzzer
+	echo -en "[libfuzzer]\nmax_len = 1000000\n" > $OUT/${fuzzer_name}.options
+	make tools/target_dem_fuzzer
+	mv tools/target_dem_fuzzer $OUT/${fuzzer_name}
+fi
 
 # We do not need raw reference files for the muxer
 rm `find fate-suite -name '*.s16'`
 rm `find fate-suite -name '*.dec'`
 rm `find fate-suite -name '*.pcm'`
 
-zip -r $OUT/${fuzzer_name}_seed_corpus.zip fate-suite
-zip -r $OUT/ffmpeg_AV_CODEC_ID_HEVC_fuzzer_seed_corpus.zip fate-suite/hevc fate-suite/hevc-conformance
+# We don't need the seed corpora
+#zip -r $OUT/${fuzzer_name}_seed_corpus.zip fate-suite
+#zip -r $OUT/ffmpeg_AV_CODEC_ID_HEVC_fuzzer_seed_corpus.zip fate-suite/hevc fate-suite/hevc-conformance
 
-# Build fuzzer for demuxer fed at IO level
-fuzzer_name=ffmpeg_IO_DEMUXER_fuzzer
-make tools/target_io_dem_fuzzer
-mv tools/target_io_dem_fuzzer $OUT/${fuzzer_name}
-
-#Build fuzzers for individual demuxers
-PKG_CONFIG_PATH="$FFMPEG_DEPS_PATH/lib/pkgconfig" ./configure \
-    --cc=$CC --cxx=$CXX --ld="$CXX $CXXFLAGS -std=c++11" \
-    --extra-cflags="-I$FFMPEG_DEPS_PATH/include" \
-    --extra-ldflags="-L$FFMPEG_DEPS_PATH/lib" \
-    --prefix="$FFMPEG_DEPS_PATH" \
-    --pkg-config-flags="--static" \
-    --enable-ossfuzz \
-    --libfuzzer=$LIB_FUZZING_ENGINE \
-    --optflags=-O1 \
-    --enable-gpl \
-    --enable-libxml2 \
-    --disable-muxers \
-    --disable-protocols \
-    --disable-devices \
-    --disable-shared \
-    --disable-encoders \
-    --disable-filters \
-    --disable-muxers  \
-    --disable-parsers  \
-    --disable-decoders  \
-    --disable-hwaccels  \
-    --disable-bsfs  \
-    --disable-vaapi  \
-    --disable-vdpau    \
-    --disable-crystalhd  \
-    --disable-v4l2_m2m  \
-    --disable-cuda_llvm  \
-    --enable-demuxers \
-    --disable-demuxer=rtp,rtsp,sdp \
-
-CONDITIONALS=`grep 'DEMUXER 1$' config_components.h | sed 's/#define CONFIG_\(.*\)_DEMUXER 1/\1/'`
-if [ -n "${OSS_FUZZ_CI-}" ]; then
-  # When running in CI, check the first targets only to save time and disk space
-  CONDITIONALS=( ${CONDITIONALS[@]:0:2} )
+# Get timestamp of currently checked out ffmpeg git commit
+ffmpeg_time=$(cd $SRC/ffmpeg; git log --format=%ad --date=raw | head -n1 | cut -d' ' -f1)
+min_time=$(date -d"2020-09-15" +%s)
+if [ $ffmpeg_time -gt $min_time ]; then
+	# Build fuzzer for demuxer fed at IO level
+	fuzzer_name=ffmpeg_IO_DEMUXER_fuzzer
+	make tools/target_io_dem_fuzzer
+	mv tools/target_io_dem_fuzzer $OUT/${fuzzer_name}
 fi
-for c in $CONDITIONALS ; do
-  fuzzer_name=ffmpeg_dem_${c}_fuzzer
-  symbol=`echo $c | sed "s/.*/\L\0/"`
-  make tools/target_dem_${symbol}_fuzzer
-  mv tools/target_dem_${symbol}_fuzzer $OUT/${fuzzer_name}
-done
+
+# Get timestamp of currently checked out ffmpeg git commit
+ffmpeg_time=$(cd $SRC/ffmpeg; git log --format=%ad --date=raw | head -n1 | cut -d' ' -f1)
+min_time=$(date -d"2020-10-15" +%s)
+if [ $ffmpeg_time -gt $min_time ]; then
+	#Build fuzzers for individual demuxers
+	PKG_CONFIG_PATH="$FFMPEG_DEPS_PATH/lib/pkgconfig" ./configure \
+		--cc=$CC --cxx=$CXX --ld="$CXX $CXXFLAGS -std=c++11" \
+		--extra-cflags="-I$FFMPEG_DEPS_PATH/include" \
+		--extra-ldflags="-L$FFMPEG_DEPS_PATH/lib" \
+		--prefix="$FFMPEG_DEPS_PATH" \
+		--pkg-config-flags="--static" \
+		--enable-ossfuzz \
+		--libfuzzer=$LIB_FUZZING_ENGINE \
+		--optflags=-O1 \
+		--enable-gpl \
+		--enable-libxml2 \
+		--disable-muxers \
+		--disable-protocols \
+		--disable-devices \
+		--disable-shared \
+		--disable-encoders \
+		--disable-filters \
+		--disable-muxers  \
+		--disable-parsers  \
+		--disable-decoders  \
+		--disable-hwaccels  \
+		--disable-bsfs  \
+		--disable-vaapi  \
+		--disable-vdpau    \
+		--disable-crystalhd  \
+		--disable-v4l2_m2m  \
+		--disable-cuda_llvm  \
+		--enable-demuxers \
+		--disable-demuxer=rtp,rtsp,sdp \
+
+	CONDITIONALS=`grep 'DEMUXER 1$' config_components.h | sed 's/#define CONFIG_\(.*\)_DEMUXER 1/\1/'`
+	if [ -n "${OSS_FUZZ_CI-}" ]; then
+	  # When running in CI, check the first targets only to save time and disk space
+	  CONDITIONALS=( ${CONDITIONALS[@]:0:2} )
+	fi
+	for c in $CONDITIONALS ; do
+	  fuzzer_name=ffmpeg_dem_${c}_fuzzer
+	  symbol=`echo $c | sed "s/.*/\L\0/"`
+	  make tools/target_dem_${symbol}_fuzzer
+	  mv tools/target_dem_${symbol}_fuzzer $OUT/${fuzzer_name}
+	done
+fi
 
 # Find relevant corpus in test samples and archive them for every fuzzer.
 #cd $SRC
