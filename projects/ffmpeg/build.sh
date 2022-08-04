@@ -313,7 +313,7 @@ if [[ $FUZZTARGET == "ffmpeg_dem_"* ]]; then
 				--disable-v4l2_m2m  \
 				--disable-cuda_llvm  \
 				--enable-demuxers \
-				--disable-demuxer=rtp,rtsp,sdp \
+				--disable-demuxer=rtp,rtsp,sdp
 		else
 			PKG_CONFIG_PATH="$FFMPEG_DEPS_PATH/lib/pkgconfig" ./configure \
 				--cc=$CC --cxx=$CXX --ld="$CXX $CXXFLAGS -std=c++11" \
@@ -342,7 +342,7 @@ if [[ $FUZZTARGET == "ffmpeg_dem_"* ]]; then
 				--disable-v4l2_m2m  \
 				--disable-cuda_llvm  \
 				--enable-demuxers \
-				--disable-demuxer=rtp,rtsp,sdp \
+				--disable-demuxer=rtp,rtsp,sdp
 		fi
 
 		#CONDITIONALS=`grep 'DEMUXER 1$' config_components.h | sed 's/#define CONFIG_\(.*\)_DEMUXER 1/\1/'`
