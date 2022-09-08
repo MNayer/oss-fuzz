@@ -301,6 +301,11 @@ def get_parser():  # pylint: disable=too-many-statements
                                     action='store_true',
                                     default=False,
                                     help='enable GraphExtractionPlugin when building the target')
+  build_fuzzers_parser.add_argument('--debug',
+                                    dest='debug',
+                                    action='store_true',
+                                    default=False,
+                                    help='enable debug mode (bash instead of compile as docker CMD)')
   build_fuzzers_parser.add_argument('--mount_path',
                                     dest='mount_path',
                                     help='path to mount local source in '
@@ -676,6 +681,7 @@ def build_fuzzers_impl(  # pylint: disable=too-many-arguments,too-many-locals,to
     savetemps,
     dwarf_version,
     graph_plugin,
+    debug,
     mount_path=None):
   """Builds fuzzers."""
   if not build_image_impl(project, commit):
@@ -753,6 +759,9 @@ def build_fuzzers_impl(  # pylint: disable=too-many-arguments,too-many-locals,to
   else:
     fq_project_name = 'gcr.io/oss-fuzz/%s_%s' % (project.name, commit)
 
+  if debug:
+    command += ['-ti']
+
   command += [
       '-m', DOCKER_MEMLIMIT,
       '-v',
@@ -760,7 +769,7 @@ def build_fuzzers_impl(  # pylint: disable=too-many-arguments,too-many-locals,to
       '%s:/work' % project.work, '-t',
       fq_project_name,
       'timeout', '-k', '120', '-s', 'KILL', f'{DOCKER_TIMEOUT}{DOCKER_TIMEOUT_UNIT}',
-      'compile',
+      'compile' if not debug else 'bash',
   ]
   print(command)
 
@@ -790,6 +799,7 @@ def build_fuzzers(args):
                             args.savetemps,
                             args.dwarf_version,
                             args.graph_plugin,
+                            args.debug,
                             mount_path=args.mount_path)
 
 
