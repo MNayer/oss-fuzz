@@ -27,4 +27,5 @@ for f in "${OUT}/legacy"*; do
     mv "${f}" "${f/legacy/ftfuzzer}"
 done
 
-zip -ju "${OUT}/ftfuzzer_seed_corpus.zip" "${SRC}/font-corpus/"*
+# We don't need a seed corpus to reproduce the crashes
+#zip -ju "${OUT}/ftfuzzer_seed_corpus.zip" "${SRC}/font-corpus/"*
