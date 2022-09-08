@@ -383,25 +383,34 @@ for fpath in $(find $SRC -type f | grep -P "AST[^/]*json$"); do
 	echo "INFO: Copied AST $fname to OUT directory."
 done
 
+if ! [ -z "$SAVETEMPS" ]; then
+	regex="\.i$\|\.ii$"
+
+	# Check if the temporary compilation files are placed in $SRC or $WORK
+	srcdir_ii_count=$(find $SRC -type f | grep -i "$regex" | wc -l)
+	workdir_ii_count=$(find $WORK -type f | grep -i "$regex" | wc -l)
+	if [ "$srcdir_ii_count" -gt "$workdir_ii_count" ]; then
+		tempdir=$SRC
+	else
+		tempdir=$WORK
+	fi
+
+	# Save every preprocessed C/C++ source file
+	regex="\.i$\|\.ii$"
+	tar -czvf preprocessed.tar.gz $(find $tempdir -type f | grep -i "$regex")
+	mv preprocessed.tar.gz ${OUT}/
+
+	# Save every LLVM bitcode file
+	regex="\.bc$"
+	tar -czvf llvmbc.tar.gz $(find $tempdir -type f | grep -i "$regex")
+	mv llvmbc.tar.gz ${OUT}/
+fi
+
 # Save every C/C++ source file
 if ! [ -z "$SAVESOURCE" ]; then
 	regex="\.c$\|\.cc$\|\.cpp$\|\.cxx$\|\.h$\|\.hpp$\|\.hxx$"
 	tar -czvf source.tar.gz $(find $SRC -type f | grep -i "$regex")
 	mv source.tar.gz ${OUT}/
-fi
-
-# Save every preprocessed C/C++ source file
-if ! [ -z "$SAVETEMPS" ]; then
-	regex="\.i$\|\.ii$"
-	tar -czvf preprocessed.tar.gz $(find $SRC -type f | grep -i "$regex")
-	mv preprocessed.tar.gz ${OUT}/
-fi
-
-# Save every LLVM bitcode file
-if ! [ -z "$SAVETEMPS" ]; then
-	regex="\.bc$"
-	tar -czvf llvmbc.tar.gz $(find $SRC -type f | grep -i "$regex")
-	mv llvmbc.tar.gz ${OUT}/
 fi
 
 # Since the docker service runs as root we better make sure the user on the
