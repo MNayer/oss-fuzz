@@ -396,13 +396,13 @@ if ! [ -z "$SAVETEMPS" ]; then
 	fi
 
 	# Save every preprocessed C/C++ source file
-	regex="\.i$\|\.ii$"
-	tar -czvf preprocessed.tar.gz $(find $tempdir -type f | grep -i "$regex")
+	regex=".*\.ii?$"
+	find $tempdir -type f -regex "$regex" -print0 | tar -czvf preprocessed.tar.gz --null -T -
 	mv preprocessed.tar.gz ${OUT}/
 
 	# Save every LLVM bitcode file
-	regex="\.bc$"
-	tar -czvf llvmbc.tar.gz $(find $tempdir -type f | grep -i "$regex")
+	regex=".*\.bc$"
+	find $tempdir -type f -regex "$regex" -print0 | tar -czvf llvmbc.tar.gz --null -T -
 	mv llvmbc.tar.gz ${OUT}/
 fi
 
