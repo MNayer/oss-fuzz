@@ -14,4 +14,14 @@
 #
 ################################################################################
 
+# Patch libheif build for old project versions
+for file in $(find Magick++/fuzz/ -type f); do
+	sed -i 's/\.\/configure --disable-shared --disable-go --prefix="$WORK" PKG_CONFIG_PATH="$WORK\/lib\/pkgconfig"/\.\/configure --disable-shared --disable-go --disable-examples --disable-tests --prefix="$WORK" PKG_CONFIG_PATH="$WORK\/lib\/pkgconfig"/g' $file
+done
+
+# Patch dng bug for old project versions
+pattern='raw_info=libraw_init(LIBRAW_OPIONS_NO_MEMERR_CALLBACK |.*\n.*LIBRAW_OPIONS_NO_DATAERR_CALLBACK);'
+sub='unsigned int\nflags;\n\tflags=LIBRAW_OPIONS_NO_DATAERR_CALLBACK;\n#if LIBRAW_SHLIB_CURRENT < 23\n\tflags|=LIBRAW_OPIONS_NO_MEMERR_CALLBACK;\n#endif\n\traw_info=libraw_init(flags);'
+sed -i "N;s/$pattern/$sub/g" coders/dng.c
+
 . Magick++/fuzz/build.sh
