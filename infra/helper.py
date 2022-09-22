@@ -293,7 +293,7 @@ def get_parser():  # pylint: disable=too-many-statements
                                     help='save the source code file (C/C++) in output directory')
   build_fuzzers_parser.add_argument('--cpus',
                                     dest='cpus',
-                                    type=int,
+                                    type=float,
                                     default=0,
                                     help='maximum number of cpu cores to use for building the fuzzers')
   build_fuzzers_parser.add_argument('--dwarf',
@@ -769,7 +769,7 @@ def build_fuzzers_impl(  # pylint: disable=too-many-arguments,too-many-locals,to
     command += ['-ti']
 
   if cpus > 0:
-    command += ['--cpus="%s"' % cpus]
+    command += ['--cpus', '%f' % cpus]
 
   command += [
       '-m', DOCKER_MEMLIMIT,
