@@ -1,0 +1,3 @@
+#!/bin/bash
+
+exec -a "$0" /usr/local/bin/clang-14 -working-directory=$(pwd) "$@"
