@@ -34,7 +34,7 @@ mkdir $SRC/libogg-install
 cd $SRC/ogg
 ./autogen.sh
 ./configure --disable-crc --prefix="$SRC/libogg-install"
-make -j$(nproc)
+make
 make install
 
 # Build libflac

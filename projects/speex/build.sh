@@ -19,7 +19,7 @@ pushd $SRC/ogg
 ./autogen.sh
 ./configure --prefix="$WORK" --enable-static --disable-shared --disable-crc
 make clean
-make -j$(nproc)
+make
 make install
 popd
 

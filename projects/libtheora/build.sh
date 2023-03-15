@@ -29,7 +29,7 @@ mkdir $SRC/libogg-install/
 cd $SRC/ogg
 ./autogen.sh
 ./configure --prefix="$SRC/libogg-install" --enable-static --disable-shared --disable-crc
-make -j$(nproc)
+make
 make install
 
 cd $SRC/fuzzing-headers/

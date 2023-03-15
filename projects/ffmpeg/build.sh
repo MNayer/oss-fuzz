@@ -81,7 +81,7 @@ cd $SRC/ogg
 ./autogen.sh
 ./configure --prefix="$FFMPEG_DEPS_PATH" --enable-static --disable-crc
 make clean
-make -j$(nproc)
+make
 make install
 
 cd $SRC/opus
