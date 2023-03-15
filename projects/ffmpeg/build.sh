@@ -45,6 +45,9 @@ make -j$(nproc) all
 make install
 
 cd $SRC/libXext
+# autoconf version has been bumped to 2.70 after this commit, which
+# is too new for the base image's debian version
+git checkout e8556ab06e03b59e9a512eb02955247efd4c4054
 ./autogen.sh
 ./configure --prefix="$FFMPEG_DEPS_PATH" --enable-static
 make clean
