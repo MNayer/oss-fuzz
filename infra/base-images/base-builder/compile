@@ -34,7 +34,7 @@ if ! [ -z "$COMMIT" ]; then
 				git pull --unshallow
 			fi
 			echo "INFO: Try to checkout $COMMIT of project $PROJECT in directory $directory"
-			if git checkout $COMMIT; then
+			if git checkout -f $COMMIT; then
 				echo "INFO: checked out commit $COMMIT of project $PROJECT"
 				checkout_success=1
 				popd >/dev/null
