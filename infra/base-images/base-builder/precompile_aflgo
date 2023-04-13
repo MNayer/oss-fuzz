@@ -1,0 +1,56 @@
+#!/bin/bash -eu
+# Copyright 2021 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+################################################################################
+
+echo "Precompiling AFLGo"
+
+PACKAGES=(
+	ninja-build
+	libboost-dev
+	libboost-program-options-dev
+	libboost-graph-dev
+)
+
+apt-get install -y ${PACKAGES[@]}
+
+pushd $SRC/aflgo > /dev/null
+make clean
+pushd llvm_mode > /dev/null
+make clean
+popd > /dev/null
+# Unset CFLAGS and CXXFLAGS while building AFL since we don't want to slow it
+# down with sanitizers.
+SAVE_CXXFLAGS=$CXXFLAGS
+SAVE_CFLAGS=$CFLAGS
+unset CXXFLAGS
+unset CFLAGS
+make
+
+pushd llvm_mode > /dev/null
+make
+popd > /dev/null
+
+pushd distance_calculator > /dev/null
+cmake -G Ninja ./
+cmake --build ./
+popd > /dev/null
+
+popd > /dev/null
+
+#apt-get remove -y --purge ${PACKAGES[@]}
+#apt-get autoremove -y
+
+echo "Done."

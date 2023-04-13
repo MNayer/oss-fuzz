@@ -23,37 +23,37 @@ echo "---------------------------------------------------------------"
 # $SRC/$PROJECT with PROJECT=project.name), we enter each subdirectory
 # of $SRC and try to checkout the commit.
 if ! [ -z "$COMMIT" ]; then
-	echo "INFO: Rollback to commit $COMMIT of project $PROJECT"
-	directories=$(find $SRC -maxdepth 1 -type d)
-	checkout_success=0
-	for directory in $directories; do
-		pushd $directory >/dev/null  
-		if [ -d .git ]; then         
-			if [ -f $(git rev-parse --git-dir)/shallow ]; then
-				echo "INFO: git unshallow $directory of project $PROJECT"
-				git pull --unshallow
-			fi
-			echo "INFO: Try to checkout $COMMIT of project $PROJECT in directory $directory"
-			if git checkout -f $COMMIT; then
-				echo "INFO: checked out commit $COMMIT of project $PROJECT"
-				checkout_success=1
-				popd >/dev/null
-				break
-			fi
-			echo "INFO: checkout $COMMIT of project $PROJECT in directory $directory failed"
-			#git checkout $COMMIT
-			#if [ $? -eq 0 ]; then
-			#	echo "INFO: checkout commit $COMMIT of project $PROJECT"
-			#	checkout_success=1
-			#	break
-			#fi
-		fi
-		popd >/dev/null
-	done
-	if [ $checkout_success -eq 0 ]; then
-		echo "ERROR: Rollback to commit $COMMIT of project $PROJECT failed."
-		exit 1
-	fi
+  echo "INFO: Rollback to commit $COMMIT of project $PROJECT"
+  directories=$(find $SRC -maxdepth 1 -type d)
+  checkout_success=0
+  for directory in $directories; do
+    pushd $directory >/dev/null  
+    if [ -d .git ]; then         
+      if [ -f $(git rev-parse --git-dir)/shallow ]; then
+        echo "INFO: git unshallow $directory of project $PROJECT"
+        git pull --unshallow
+      fi
+      echo "INFO: Try to checkout $COMMIT of project $PROJECT in directory $directory"
+      if git checkout -f $COMMIT; then
+        echo "INFO: checked out commit $COMMIT of project $PROJECT"
+        checkout_success=1
+        popd >/dev/null
+        break
+      fi
+      echo "INFO: checkout $COMMIT of project $PROJECT in directory $directory failed"
+      #git checkout $COMMIT
+      #if [ $? -eq 0 ]; then
+      #	echo "INFO: checkout commit $COMMIT of project $PROJECT"
+      #	checkout_success=1
+      #	break
+      #fi
+    fi
+    popd >/dev/null
+  done
+  if [ $checkout_success -eq 0 ]; then
+    echo "ERROR: Rollback to commit $COMMIT of project $PROJECT failed."
+    exit 1
+  fi
 fi
 
 
@@ -124,7 +124,7 @@ then
 fi
 
  # Don't need coverage instrumentation for engine-less, afl++ builds.
-if [ $FUZZING_ENGINE = "none" ] || [ $FUZZING_ENGINE = "afl" ]; then
+if [ $FUZZING_ENGINE = "none" ] || [ $FUZZING_ENGINE = "afl" ] || [ $FUZZING_ENGINE = "aflgo" ]; then
   export COVERAGE_FLAGS=
 fi
 
@@ -285,7 +285,7 @@ if ! [ -z "$SAVETEMPS" ]; then
 	echo "---------------------------------------------------------------"
 fi
 
-# Remove ever compile option that starts with "-g" and has probably controls
+# Remove every compile option that starts with "-g" and has probably controls
 # the creation of debug information in some way or another. We want to have
 # full control ourselves!
 export CFLAGS=$(echo $CFLAGS | sed "s/-g[^ ]*//g" | tr -s ' ')
@@ -309,6 +309,60 @@ echo "CFLAGS=$CFLAGS"
 echo "CXXFLAGS=$CXXFLAGS"
 echo "---------------------------------------------------------------"
 
+# Skip AFLGO preprocessing if fuzzing engine is not AFLGO
+if [[ "$FUZZING_ENGINE" == aflgo ]]; then
+  export CC=$SRC/aflgo/afl-clang-fast
+  export CXX=$SRC/aflgo/afl-clang-fast++
+
+	TMP_DIR=$WORK/tmp
+	i=0
+	while [ -d $TMP_DIR ]; do
+		TMP_DIR=$WORK/tmp.$i
+		i=$((i + 1))
+	done
+	mkdir $TMP_DIR
+
+	COPY_CFLAGS=$CFLAGS
+	COPY_CXXFLAGS=$CXXFLAGS
+
+	if [[ "$AFLGO_MODE" ==  targets || "$AFLGO_MODE" == recent ]]; then
+		ADDITIONAL="-targets=$TMP_DIR/BBtargets.txt -outdir=$TMP_DIR -flto -fuse-ld=gold -Wl,-plugin-opt=save-temps"
+	fi
+	if [[ "$AFLGO_MODE" == coverage ]]; then
+		ADDITIONAL="-outdir=$TMP_DIR -flto -fuse-ld=gold -Wl,-plugin-opt=save-temps"
+	fi
+
+	export CFLAGS="$CFLAGS $ADDITIONAL"
+	export CXXFLAGS="$CXXFLAGS $ADDITIONAL"
+
+	chmod +x $SRC/showlinenum.awk
+
+	pushd $SRC/$PROJECT > /dev/null
+
+	sleep 0.5 #Workaround for "Text file busy"
+	if [[ "$AFLGO_MODE" == recent ]]; then
+		git diff -U0 HEAD^ HEAD > $SRC/commit.diff
+		cat $SRC/commit.diff |  $SRC/showlinenum.awk show_header=0 path=1 | grep -e "\.[ch]:[0-9]*:+" -e "\.cpp:[0-9]*:+" -e "\.cc:[0-9]*:+" | cut -d+ -f1 | rev | cut -c2- | rev > $TMP_DIR/BBtargets.txt
+	fi
+	if [[ "$AFLGO_MODE" == targets ]]; then
+		for target in $(echo $TARGETS | sed 's/,/ /g'); do
+			echo $target >> $TMP_DIR/BBtargets.txt
+		done
+	fi
+	popd > /dev/null
+
+	if [[ "$AFLGO_MODE" == targets || "$AFLGO_MODE" == recent ]]; then
+		cat $TMP_DIR/BBtargets.txt
+		if [ $(cat $TMP_DIR/BBtargets.txt | wc -l) -eq 0 ]; then
+			echo    "############################################################################"
+			echo -e "# \e[1;31mAborting ..\e[0m -- No targets for commit $COMMIT of $PROJECT."
+			echo    "############################################################################"
+			rm -rf $TMP_DIR
+			exit 1
+		fi
+	fi
+fi
+
 if [ "${BUILD_UID-0}" -ne "0" ]; then
   adduser -u $BUILD_UID --disabled-password --gecos '' builder
   chown -R builder $SRC $OUT $WORK
@@ -323,6 +377,84 @@ else
     # Some directories have broken symlinks (e.g. honggfuzz), ignore the errors.
     $COPY_SOURCES_CMD 2>/dev/null || true
   fi
+fi
+
+if [[ "$FUZZING_ENGINE" == aflgo && "$AFLGO_MODE" != coverage ]]; then
+
+  if [ $(grep -Ev "^$" $TMP_DIR/Ftargets.txt | wc -l) -eq 0 ]; then
+    echo    "############################################################################"
+    echo -e "# \e[1;31mAborting ..\e[0m -- No targets in Ftargets for commit $COMMIT of $PROJECT."
+    echo    "############################################################################"
+    rm $OUT/*
+    rm -rf $TMP_DIR
+    exit 1
+  fi
+
+  #Clean up. Ignore non-zero exit codes.
+  set +eu
+    rm -rf $WORK/$PROJECT
+    pushd $SRC/$PROJECT >/dev/null
+    make clean
+    make distclean
+    popd > /dev/null
+  set -eu
+
+  #FILTER BBnames and Fnames
+  sleep 0.5
+  cat $TMP_DIR/BBnames.txt | rev | cut -d: -f2- | rev | sort | uniq > $TMP_DIR/BBnames2.txt && mv $TMP_DIR/BBnames2.txt $TMP_DIR/BBnames.txt
+  cat $TMP_DIR/BBcalls.txt | sort | uniq > $TMP_DIR/BBcalls2.txt && mv $TMP_DIR/BBcalls2.txt $TMP_DIR/BBcalls.txt
+
+  echo "---------------------------------------------------------------"
+
+	#$SRC/aflgo/scripts/genDistance.sh $OUT $TMP_DIR $FUZZTARGET
+	echo "Trying gen_distance_fast..."
+  $SRC/aflgo/scripts/gen_distance_fast.py $OUT $TMP_DIR $FUZZTARGET
+	if [[ "$?" != "0" ]];  then
+		echo "... gen_distance_fast failed, trying genDistance..."
+		$SRC/aflgo/scripts/genDistance.sh $OUT $TMP_DIR $FUZZTARGET
+		if [[ "$?" != "0" ]];  then
+			echo "... genDistance also failed. Exiting."
+			exit 1
+		fi
+	fi
+	echo "... success."
+
+  #Clean up
+  rm $OUT/*
+  cp $TMP_DIR/distance.cfg.txt $OUT
+  rm -rf $TMP_DIR
+
+  export CFLAGS="$COPY_CFLAGS -distance=$OUT/distance.cfg.txt"
+  export CXXFLAGS="$COPY_CXXFLAGS -distance=$OUT/distance.cfg.txt"
+
+  #if [ "${BUILD_UID-0}" -ne "0" ]; then
+  #  su -c "$BUILD_CMD" builder
+  #else
+  #  $BUILD_CMD
+  #fi
+	if [ "${BUILD_UID-0}" -ne "0" ]; then
+		adduser -u $BUILD_UID --disabled-password --gecos '' builder
+		chown -R builder $SRC $OUT $WORK
+		su -c "$BUILD_CMD" builder
+		if [ "$SANITIZER" = "coverage" ]; then
+			# Some directories have broken symlinks (e.g. honggfuzz), ignore the errors.
+			su -c "$COPY_SOURCES_CMD" builder 2>/dev/null || true
+		fi
+	else
+		$BUILD_CMD || (chmod -R 777 $SRC; chmod -R 777 $WORK; false)
+		if [ "$SANITIZER" = "coverage" ]; then
+			# Some directories have broken symlinks (e.g. honggfuzz), ignore the errors.
+			$COPY_SOURCES_CMD 2>/dev/null || true
+		fi
+	fi
+
+fi
+
+if [[ "$FUZZING_ENGINE" == aflgo ]]; then
+	# We need the aflgo binaries
+	pushd $SRC/aflgo > /dev/null
+	ls afl-* *.txt *.a *.o *.so | sort -u | xargs cp -t $OUT
+	popd
 fi
 
 if [ "$SANITIZER" = "introspector" ]; then

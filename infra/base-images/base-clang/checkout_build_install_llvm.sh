@@ -75,7 +75,8 @@ cd clang
 LLVM_SRC=$SRC/llvm-project
 
 # For manual bumping.
-OUR_LLVM_REVISION=llvmorg-14-init-7378-gaee49255
+#OUR_LLVM_REVISION=llvmorg-14-init-7378-gaee49255
+OUR_LLVM_REVISION=llvmorg-11.0.0
 
 # To allow for manual downgrades. Set to 0 to use Chrome's clang version (i.e.
 # *not* force a manual downgrade). Set to 1 to force a manual downgrade.
@@ -204,6 +205,11 @@ rm -rf $WORK/dfsan
 
 # libFuzzer sources.
 cp -r $LLVM_SRC/compiler-rt/lib/fuzzer $SRC/libfuzzer
+
+# Install LLVMgold in bfd-plugins
+mkdir -p /usr/lib/bfd-plugins
+cp /usr/local/lib/libLTO.so /usr/lib/bfd-plugins
+cp /usr/local/lib/LLVMgold.so /usr/lib/bfd-plugins
 
 # Cleanup
 rm -rf $LLVM_SRC

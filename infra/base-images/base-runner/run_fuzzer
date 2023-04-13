@@ -63,6 +63,8 @@ function get_dictionary() {
      printf -- "-dict=%s" "$dict"
   elif [[ "$FUZZING_ENGINE" = "afl" ]]; then
      printf -- "-x %s" "$dict"
+  elif [[ "$FUZZING_ENGINE" = "aflgo" ]]; then
+     printf -- "-x %s" "$dict"
   elif [[ "$FUZZING_ENGINE" = "honggfuzz" ]]; then
      printf -- "--dict %s" "$dict"
   else
@@ -136,6 +138,28 @@ if [[ "$FUZZING_ENGINE" = afl ]]; then
   env|grep AFL_
   cat "$OUT/afl_options.txt"
 
+elif [[ "$FUZZING_ENGINE" = aflgo ]]; then
+
+	# Use afl++ environment options (don't know if we need them, but it should
+	# not hurt to set them all)
+  export ASAN_OPTIONS="$ASAN_OPTIONS:abort_on_error=1:symbolize=0:detect_odr_violation=0:"
+  export MSAN_OPTIONS="$MSAN_OPTIONS:exit_code=86:symbolize=0"
+  export UBSAN_OPTIONS="$UBSAN_OPTIONS:symbolize=0"
+  export AFL_I_DONT_CARE_ABOUT_MISSING_CRASHES=1
+  export AFL_SKIP_CPUFREQ=1
+  export AFL_TRY_AFFINITY=1
+  export AFL_FAST_CAL=1
+  export AFL_CMPLOG_ONLY_NEW=1
+  export AFL_FORKSRV_INIT_TMOUT=30000
+  export AFL_IGNORE_PROBLEMS=1
+  export AFL_IGNORE_UNKNOWN_ENVS=1
+
+  CMD_LINE="$OUT/afl-fuzz $AFL_FUZZER_ARGS -i $CORPUS_DIR -o $FUZZER_OUT $(get_dictionary) $* -- $OUT/$FUZZER"
+
+  #echo aflgo setup:
+  #env|grep AFL_
+
+
 elif [[ "$FUZZING_ENGINE" = honggfuzz ]]; then
 
   # Honggfuzz expects at least 1 file in the input dir.
@@ -175,6 +199,7 @@ fi
 echo $CMD_LINE
 
 # Unset OUT so the fuzz target can't rely on it.
+OUT_SAVE=$OUT
 unset OUT
 
 if [ ! -z "$DEBUGGER" ]; then
@@ -183,3 +208,7 @@ fi
 
 bash -c "$CMD_LINE"
 
+# Since the docker service runs as root we better make sure the user on the
+# host can r/w/x the files we create here.
+chmod -R 777 $OUT_SAVE
+#chmod -R 777 $WORK

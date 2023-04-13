@@ -32,7 +32,12 @@ RUN dpkg --add-architecture i386 && \
         patchelf \
         rsync \
         subversion \
-        zip
+        zip \
+        gawk \
+				vim
+				#ninja-build \
+				#libboost-all-dev \
+        #zlib1g-dev
 
 # Build and install latest Python 3 (3.8.3).
 ENV PYTHON_VERSION 3.8.3
@@ -61,6 +66,9 @@ RUN export PYTHON_DEPS="\
     rm -r /tmp/Python-$PYTHON_VERSION.tar.xz /tmp/Python-$PYTHON_VERSION && \
     rm -rf /usr/local/lib/python3.8/test && \
     apt-get remove -y $PYTHON_DEPS # https://github.com/google/oss-fuzz/issues/3888
+
+# Install AFLGo python deps
+RUN pip3 install networkx==2.8.8 pydot pydotplus
 
 # Install six for Bazel rules.
 RUN unset CFLAGS CXXFLAGS && pip3 install -v --no-cache-dir \
@@ -138,6 +146,12 @@ RUN cd $SRC && \
     tar -xzv --strip-components=1 -f $SRC/oss-fuzz.tar.gz && \
     rm -rf examples $SRC/oss-fuzz.tar.gz
 
+ADD https://raw.githubusercontent.com/jay/showlinenum/develop/showlinenum.awk $SRC/
+
+RUN git clone https://github.com/MNayer/aflgo.git aflgo && \
+    cd aflgo && \
+    git checkout e4716200d64c7dc32952ad4b66d7f6752d2d5149
+
 # Do precompiles before copying other scripts for better cache efficiency.
 COPY precompile_afl /usr/local/bin/
 RUN precompile_afl
@@ -145,7 +159,10 @@ RUN precompile_afl
 COPY precompile_honggfuzz /usr/local/bin/
 RUN precompile_honggfuzz
 
-COPY cargo compile compile_afl compile_dataflow compile_libfuzzer compile_honggfuzz \
+COPY precompile_aflgo /usr/local/bin/
+RUN precompile_aflgo
+
+COPY cargo compile compile_afl compile_aflgo compile_dataflow compile_libfuzzer compile_honggfuzz \
     compile_go_fuzzer \
     compile_native_go_fuzzer \
     debug_afl srcmap \
@@ -162,5 +179,6 @@ COPY cargo compile compile_afl compile_dataflow compile_libfuzzer compile_honggf
 COPY llvmsymbol.diff $SRC
 COPY detect_repo.py /opt/cifuzz/
 COPY bazel.bazelrc /root/.bazelrc
+COPY aflgo_driver.cpp $SRC
 
 CMD ["compile"]

@@ -1,3 +1,4 @@
 #!/bin/bash
 
-exec -a "$0" /usr/local/bin/clang-14 -working-directory=$(pwd) "$@"
+orig_clang=$(ls /usr/local/bin/clang-* | grep -E 'clang-[0-9]+$')
+exec -a "$0" $orig_clang -working-directory=$(pwd) "$@"

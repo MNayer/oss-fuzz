@@ -272,10 +272,17 @@ def get_parser():  # pylint: disable=too-many-statements
                                     nargs='?')
   build_fuzzers_parser.add_argument('--commit',
                                     help='project commit to rollback to',
-                                    default="")
+                                    default='')
+  build_fuzzers_parser.add_argument('--aflgo_mode',
+                                    help='aflgo\'s operation mode, if engine "aflgo" has been selected',
+                                    default='',
+                                    choices=constants.AFLGO_MODES)
+  build_fuzzers_parser.add_argument('--aflgo_targets',
+                                    help='if alfgo "target" mode has been selected, this comma seperated list of targets will be used. Example "src/readelf.c:25,src/parse.c:133"',
+                                    default='')
   build_fuzzers_parser.add_argument('--fuzztarget',
                                     help='fuzzing target to be built',
-                                    default="")
+                                    default='')
   build_fuzzers_parser.add_argument('--noinst',
                                     dest='noinst',
                                     action='store_true',
@@ -345,6 +352,9 @@ def get_parser():  # pylint: disable=too-many-statements
   _add_sanitizer_args(run_fuzzer_parser)
   _add_environment_args(run_fuzzer_parser)
   _add_external_project_args(run_fuzzer_parser)
+  run_fuzzer_parser.add_argument('--commit',
+                                    help='project commit to rollback to',
+                                    default="")
   run_fuzzer_parser.add_argument(
       '--corpus-dir', help='directory to store corpus for the fuzz target')
   run_fuzzer_parser.add_argument('project',
@@ -681,6 +691,8 @@ def build_fuzzers_impl(  # pylint: disable=too-many-arguments,too-many-locals,to
     source_path,
     commit,
     fuzztarget,
+    aflgo_mode,
+    aflgo_targets,
     noinst,
     savesource,
     savetemps,
@@ -692,6 +704,11 @@ def build_fuzzers_impl(  # pylint: disable=too-many-arguments,too-many-locals,to
   """Builds fuzzers."""
   if not build_image_impl(project, commit):
     return False
+
+  if engine == 'aflgo':
+      assert(aflgo_mode in constants.AFLGO_MODES)
+      if aflgo_mode == 'targets':
+          assert(isinstance(aflgo_targets, str) and len(aflgo_targets) > 0)
 
   if clean:
     logging.info('Cleaning existing build artifacts.')
@@ -726,6 +743,8 @@ def build_fuzzers_impl(  # pylint: disable=too-many-arguments,too-many-locals,to
       'PROJECT=' + project.name,
       'COMMIT=' + commit,
       'FUZZTARGET=' + fuzztarget,
+      'AFLGO_MODE=' + aflgo_mode,
+      'TARGETS=' + aflgo_targets,
       'NOINST=' + ("1" if noinst else ""),
       'SAVESOURCE=' + ("1" if savesource else ""),
       'SAVETEMPS=' + ("1" if savetemps else ""),
@@ -803,6 +822,8 @@ def build_fuzzers(args):
                             args.source_path,
                             args.commit,
                             args.fuzztarget,
+                            args.aflgo_mode,
+                            args.aflgo_targets,
                             args.noinst,
                             args.savesource,
                             args.savetemps,
