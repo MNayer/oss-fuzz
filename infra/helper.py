@@ -355,6 +355,15 @@ def get_parser():  # pylint: disable=too-many-statements
   run_fuzzer_parser.add_argument('--commit',
                                     help='project commit to rollback to',
                                     default="")
+  run_fuzzer_parser.add_argument('--timeout',
+                                    help='time to fuzz the target (e. g. 30s, 60m, 2h, etc.)',
+                                    default="60m")
+  run_fuzzer_parser.add_argument('--aflgo_exploitation',
+                                    help='time to exploitation for aflgo (e. g. 30s, 60m, 2h, etc.)',
+                                    default="")
+  run_fuzzer_parser.add_argument('--mem_limit',
+                                    help='memory limit (in mb) for each run',
+                                    default="")
   run_fuzzer_parser.add_argument(
       '--corpus-dir', help='directory to store corpus for the fuzz target')
   run_fuzzer_parser.add_argument('project',
@@ -1064,6 +1073,8 @@ def run_fuzzer(args):
   env = [
       'FUZZING_ENGINE=' + args.engine,
       'SANITIZER=' + args.sanitizer,
+      'AFLGO_EXPLOITATION=' + args.aflgo_exploitation,
+      'MEM_LIMIT=' + args.mem_limit,
       'RUN_FUZZER_MODE=interactive',
   ]
 
@@ -1089,12 +1100,21 @@ def run_fuzzer(args):
       '%s:/out' % args.project.out,
       '-t',
       'gcr.io/oss-fuzz-base/base-runner',
-      'timeout', '-k', '120', f'{DOCKER_TIMEOUT}{DOCKER_TIMEOUT_UNIT}',
+      'timeout', '-k', '60', args.timeout,
       'run_fuzzer',
       args.fuzzer_name,
   ] + args.fuzzer_args)
+  res = docker_run(run_args)
 
-  return docker_run(run_args)
+  # Change build directory permission recursively
+  docker_run([
+      #'-v', '%s:/corpus' % corpus_dir,
+      '-v', '%s:/out' % args.project.out,
+      'gcr.io/oss-fuzz-base/base-runner',
+      'chmod', '-R', '777', '/out'
+  ])
+
+  return res
 
 
 def reproduce(args):

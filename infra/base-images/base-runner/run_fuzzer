@@ -154,6 +154,16 @@ elif [[ "$FUZZING_ENGINE" = aflgo ]]; then
   export AFL_IGNORE_PROBLEMS=1
   export AFL_IGNORE_UNKNOWN_ENVS=1
 
+	# Set time to exploitation for aflgo
+	test ! -z $AFLGO_EXPLOITATION && AFL_FUZZER_ARGS="$AFL_FUZZER_ARGS -c $AFLGO_EXPLOITATION"
+
+	# Set memory limit
+	test ! -z $MEM_LIMIT && AFL_FUZZER_ARGS="$AFL_FUZZER_ARGS -m $MEM_LIMIT"
+
+  # Ensure timeout is a bit larger than 1sec as some of the OSS-Fuzz fuzzers
+  # are slower than this.
+  AFL_FUZZER_ARGS="$AFL_FUZZER_ARGS -t 5000+"
+
   CMD_LINE="$OUT/afl-fuzz $AFL_FUZZER_ARGS -i $CORPUS_DIR -o $FUZZER_OUT $(get_dictionary) $* -- $OUT/$FUZZER"
 
   #echo aflgo setup:
