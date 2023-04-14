@@ -612,7 +612,7 @@ def _workdir_from_dockerfile(project):
   return workdir_from_lines(lines, default=os.path.join('/src', project.name))
 
 
-def docker_run(run_args, print_output=True):
+def docker_run(run_args, print_output=True, with_timeout=False):
   """Calls `docker run`."""
   command = ['docker', 'run', '--rm', '--privileged']
 
@@ -629,7 +629,10 @@ def docker_run(run_args, print_output=True):
 
   try:
     subprocess.check_call(command, stdout=stdout, stderr=subprocess.STDOUT)
-  except subprocess.CalledProcessError:
+  except subprocess.CalledProcessError as err:
+    if with_timeout and err.returncode == 124:
+        # exit code 124 means command did run, but timed out
+        return True
     return False
 
   return True
@@ -1104,7 +1107,7 @@ def run_fuzzer(args):
       'run_fuzzer',
       args.fuzzer_name,
   ] + args.fuzzer_args)
-  res = docker_run(run_args)
+  res = docker_run(run_args, with_timeout=True)
 
   # Change build directory permission recursively
   docker_run([
