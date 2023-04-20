@@ -162,7 +162,7 @@ RUN precompile_honggfuzz
 COPY precompile_aflgo /usr/local/bin/
 RUN precompile_aflgo
 
-COPY cargo compile compile_afl compile_aflgo compile_dataflow compile_libfuzzer compile_honggfuzz \
+COPY cargo compile do_compile compile_afl compile_aflgo compile_dataflow compile_libfuzzer compile_honggfuzz \
     compile_go_fuzzer \
     compile_native_go_fuzzer \
     debug_afl srcmap \
