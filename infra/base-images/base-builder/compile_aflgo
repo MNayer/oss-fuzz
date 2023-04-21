@@ -19,23 +19,10 @@
 # afl needs its special coverage flags
 export COVERAGE_FLAGS="-fsanitize-coverage=trace-pc-guard"
 
-#echo ""
-#echo "Checking out aflgo .."
-#pushd $SRC >/dev/null
-##git clone --depth 1 https://github.com/mnayer/aflgo.git # TODO USE
-#cd aflgo && CFLAGS="" CXXFLAGS="" make
-#cd llvm_mode && CFLAGS="" CXXFLAGS="" make
-#popd > /dev/null
-
-#export CC=$SRC/aflgo/afl-clang-fast
-#export CXX=$SRC/aflgo/afl-clang-fast++
-
 echo "Compiling aflgo to $LIB_FUZZING_ENGINE ..."
 # TODO We could use CMPLOG light (see. infra/base-images/base-builder/compile_afl
 mkdir -p $WORK/afl
 pushd $WORK/afl > /dev/null
-#$CC $CFLAGS -c $SRC/aflgo/llvm_mode/afl-llvm-rt.o.c
-#$SRC/aflgo/afl-clang-fast++ $CXXFLAGS -std=c++11 -O2 -c $SRC/libfuzzer/afl/afl_driver.cpp -I$SRC/libfuzzer
 $SRC/aflgo/afl-clang-fast++ $CXXFLAGS -std=c++11 -O2 -c $SRC/aflgo_driver.cpp -I$SRC/libfuzzer
 ar r $LIB_FUZZING_ENGINE $WORK/afl/*.o
 popd > /dev/null

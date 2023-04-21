@@ -1,4 +1,6 @@
 #!/bin/bash
 
 do_compile $@
+exit_code=$?
 chmod -R 777 $OUT $WORK
+exit $exit_code

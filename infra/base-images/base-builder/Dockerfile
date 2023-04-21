@@ -139,6 +139,10 @@ RUN git clone https://github.com/AFLplusplus/AFLplusplus.git aflplusplus && \
     wget --no-check-certificate -O oss.sh https://raw.githubusercontent.com/vanhauser-thc/binary_blobs/master/oss.sh && \
     chmod 755 oss.sh
 
+# Do precompiles before copying other scripts for better cache efficiency.
+COPY precompile_afl /usr/local/bin/
+RUN precompile_afl
+
 RUN cd $SRC && \
     curl -L -O https://github.com/google/honggfuzz/archive/oss-fuzz.tar.gz && \
     mkdir honggfuzz && \
@@ -148,16 +152,12 @@ RUN cd $SRC && \
 
 ADD https://raw.githubusercontent.com/jay/showlinenum/develop/showlinenum.awk $SRC/
 
-RUN git clone https://github.com/MNayer/aflgo.git aflgo && \
-    cd aflgo && \
-    git checkout e4716200d64c7dc32952ad4b66d7f6752d2d5149
-
-# Do precompiles before copying other scripts for better cache efficiency.
-COPY precompile_afl /usr/local/bin/
-RUN precompile_afl
-
 COPY precompile_honggfuzz /usr/local/bin/
 RUN precompile_honggfuzz
+
+RUN git clone https://github.com/MNayer/aflgo.git aflgo && \
+    cd aflgo && \
+    git checkout 8e2bda5c2c1435db8376a8060a03b1613b39ad75
 
 COPY precompile_aflgo /usr/local/bin/
 RUN precompile_aflgo
