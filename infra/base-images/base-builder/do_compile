@@ -572,6 +572,14 @@ if ! [ -z "$SAVESOURCE" ]; then
 	mv source.tar.gz ${OUT}/
 fi
 
+# Save commits for every git repository
+git_dirs=$(find / -type d | grep "\.git$" | grep -v "$SRC/aflgo" | grep -v "$SRC/aflplusplus" | grep -v "/fuzz-introspector")
+for dir in $git_dirs; do
+	pushd $dir/..
+	echo "$(pwd),$(git rev-parse HEAD)" >> $OUT/commits.csv
+	popd
+done
+
 # Since the docker service runs as root we better make sure the user on the
 # host can r/w/x the files we create here.
 chmod -R 777 $OUT

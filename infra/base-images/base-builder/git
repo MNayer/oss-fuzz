@@ -1,0 +1,17 @@
+#!/bin/bash
+
+if [ $1 = "clone" ]; then
+	for i in {1..2}; do
+		dst_path=$(git_orig $@ 2>&1 | grep "Cloning into\|fatal: destination path" | sed "s/Cloning into '\([^']*\)'.*\|fatal: destination path '\([^']*\)'.*/\1\2/")
+		if [ ! ${PIPESTATUS[0]} = 0 ]; then
+			rm -rf $dst_path
+		else
+			pushd $dst_path
+			git pull --unshallow
+			echo "$(pwd),$(git rev-parse HEAD)" >> $OUT/commits.csv
+			popd
+		fi
+	done
+else
+	git_orig $@
+fi

@@ -157,10 +157,13 @@ RUN precompile_honggfuzz
 
 RUN git clone https://github.com/MNayer/aflgo.git aflgo && \
     cd aflgo && \
-    git checkout 8e2bda5c2c1435db8376a8060a03b1613b39ad75
+    git checkout 1a67aef8ace8adb536bc8be2db1c7d867ed0e204
 
 COPY precompile_aflgo /usr/local/bin/
 RUN precompile_aflgo
+
+RUN mv /bin/git /bin/git_orig
+COPY git /bin/git
 
 COPY cargo compile do_compile compile_afl compile_aflgo compile_dataflow compile_libfuzzer compile_honggfuzz \
     compile_go_fuzzer \
