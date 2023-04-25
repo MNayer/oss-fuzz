@@ -361,6 +361,15 @@ def get_parser():  # pylint: disable=too-many-statements
   run_fuzzer_parser.add_argument('--aflgo_exploitation',
                                     help='time to exploitation for aflgo (e. g. 30s, 60m, 2h, etc.)',
                                     default="")
+  run_fuzzer_parser.add_argument('--aflgo_disable_directed',
+                                    action='store_true',
+                                    help='disable directed fuzzing (use coverage guided fuzzing only)',
+                                    default=False)
+  run_fuzzer_parser.add_argument('--debug',
+                                    dest='debug',
+                                    action='store_true',
+                                    default=False,
+                                    help='enable debug mode (bash instead of run_fuzzer as docker CMD)')
   run_fuzzer_parser.add_argument('--mem_limit',
                                     help='memory limit (in mb) for each run',
                                     default="")
@@ -1077,6 +1086,7 @@ def run_fuzzer(args):
       'FUZZING_ENGINE=' + args.engine,
       'SANITIZER=' + args.sanitizer,
       'AFLGO_EXPLOITATION=' + args.aflgo_exploitation,
+      'AFLGO_DISABLE_DIRECTED=%s' % ('1' if args.aflgo_disable_directed else ''),
       'MEM_LIMIT=' + args.mem_limit,
       'RUN_FUZZER_MODE=interactive',
   ]
@@ -1101,12 +1111,12 @@ def run_fuzzer(args):
       '-m', DOCKER_MEMLIMIT,
       '-v',
       '%s:/out' % args.project.out,
-      '-t',
+      '-t' if not args.debug else '-ti',
       'gcr.io/oss-fuzz-base/base-runner',
       'timeout', '-k', '60', args.timeout,
-      'run_fuzzer',
-      args.fuzzer_name,
-  ] + args.fuzzer_args)
+      'run_fuzzer' if not args.debug else 'bash'])
+  if not args.debug:
+    run_args.extend([args.fuzzer_name] + args.fuzzer_args)
   res = docker_run(run_args, with_timeout=True)
 
   # Change build directory permission recursively
