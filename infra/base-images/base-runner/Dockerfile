@@ -48,6 +48,7 @@ RUN apt-get update && apt-get install -y \
     python3-setuptools \
     unzip \
     wget \
+		vim \
     zip --no-install-recommends
 
 ENV CODE_COVERAGE_SRC=/opt/code_coverage

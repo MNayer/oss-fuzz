@@ -420,6 +420,11 @@ def get_parser():  # pylint: disable=too-many-statements
   reproduce_parser.add_argument('--valgrind',
                                 action='store_true',
                                 help='run with valgrind')
+  reproduce_parser.add_argument('--debug',
+                                dest='debug',
+                                action='store_true',
+                                default=False,
+                                help='enable debug mode (bash instead of compile as docker CMD)')
   reproduce_parser.add_argument('--commit',
                                     help='project commit to rollback to',
                                     default="")
@@ -1132,7 +1137,7 @@ def run_fuzzer(args):
 
 def reproduce(args):
   """Reproduces a specific test case from a specific project."""
-  return reproduce_impl(args.project, args.fuzzer_name, args.valgrind, args.e,
+  return reproduce_impl(args.project, args.fuzzer_name, args.valgrind, args.debug, args.e,
                         args.fuzzer_args, args.testcase_path)
 
 
@@ -1140,6 +1145,7 @@ def reproduce_impl(  # pylint: disable=too-many-arguments
     project,
     fuzzer_name,
     valgrind,
+    debug,
     env_to_add,
     fuzzer_args,
     testcase_path,
@@ -1173,12 +1179,18 @@ def reproduce_impl(  # pylint: disable=too-many-arguments
       '%s:/testcase' % _get_absolute_path(testcase_path),
       '-t',
       'gcr.io/oss-fuzz-base/%s' % image_name,
+  ]
+  reproduce_args = [
       'timeout', '-k', '120', f'{DOCKER_TIMEOUT}{DOCKER_TIMEOUT_UNIT}',
       'reproduce',
       fuzzer_name,
       '-runs=100',
   ] + fuzzer_args
-
+  if debug:
+      print('fuzzer args: %s' % " ".join(reproduce_args))
+      run_args += ['bash']
+  else:
+      run_args += reproduce_args
   return run_function(run_args)
 
 
