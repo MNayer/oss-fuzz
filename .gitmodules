@@ -1,3 +1,0 @@
-[submodule "infra/base-images/base-clang/graph-extraction"]
-	path = infra/base-images/base-clang/graph-extraction
-	url = git@git.sec.cs.tu-bs.de:code/ivan/graph-extraction.git

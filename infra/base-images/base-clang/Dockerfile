@@ -50,17 +50,6 @@ ENV CC "clang"
 ENV CXX "clang++"
 ENV CCC "clang++"
 
-## Build GraphExtractionPlugin
-#COPY graph-extraction /tmp/graph-extraction
-#RUN apt-get install -y python3 python3-pip && \
-#    pip3 install click GitPython && \
-#	cd /tmp/graph-extraction && \
-#	mkdir build && cd build && \
-#	cmake ../ && \
-#	make graph_extraction_plugin && \
-#	mv libgraph_extraction_plugin.so /usr/local/lib && \
-#	cd /tmp/ && rm -rf graph-extraction
-
 # FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION is described at
 # http://libfuzzer.info#fuzzer-friendly-build-mode
 
