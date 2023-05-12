@@ -48,6 +48,14 @@ else
   FUZZER_OUT="/tmp/${FUZZER}_${FUZZING_ENGINE}_${SANITIZER}_out"
 fi
 
+SAVED_FUZZER_OUT=$FUZZER_OUT
+FUZZER_OUT=/tmp/out
+
+mkdir -p $FUZZER_OUT
+
+# Create tmpfs
+mount -t tmpfs -o size=16G tmpfs $FUZZER_OUT
+
 function get_dictionary() {
   local options_file="$FUZZER.options"
   local dict_file="$FUZZER.dict"
@@ -224,7 +232,15 @@ if [ ! -z "$DEBUGGER" ]; then
   CMD_LINE="$DEBUGGER $CMD_LINE"
 fi
 
-bash -c "$CMD_LINE"
+set +e
+bash -c "timeout -k 120 $TIMEOUT $CMD_LINE"
+set -e
+
+# Copy output files to output directory
+cp -r $FUZZER_OUT $SAVED_FUZZER_OUT
+
+# Unmount tmpfs
+umount $FUZZER_OUT
 
 # Since the docker service runs as root we better make sure the user on the
 # host can r/w/x the files we create here.

@@ -1092,6 +1092,7 @@ def run_fuzzer(args):
       'SANITIZER=' + args.sanitizer,
       'AFLGO_EXPLOITATION=' + args.aflgo_exploitation,
       'AFLGO_DISABLE_DIRECTED=%s' % ('1' if args.aflgo_disable_directed else ''),
+      'TIMEOUT=%s' % args.timeout,
       'MEM_LIMIT=' + args.mem_limit,
       'RUN_FUZZER_MODE=interactive',
   ]
@@ -1118,7 +1119,7 @@ def run_fuzzer(args):
       '%s:/out' % args.project.out,
       '-t' if not args.debug else '-ti',
       'gcr.io/oss-fuzz-base/base-runner',
-      'timeout', '-k', '60', args.timeout,
+      #'timeout', '-k', '60', args.timeout,
       'run_fuzzer' if not args.debug else 'bash'])
   if not args.debug:
     run_args.extend([args.fuzzer_name] + args.fuzzer_args)
