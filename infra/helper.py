@@ -313,6 +313,10 @@ def get_parser():  # pylint: disable=too-many-statements
                                     action='store_true',
                                     default=False,
                                     help='enable GraphExtractionPlugin when building the target')
+  build_fuzzers_parser.add_argument('--out_directory',
+                                    dest='out_directory',
+                                    default=None,
+                                    help='overwrite default out directory')
   build_fuzzers_parser.add_argument('--debug',
                                     dest='debug',
                                     action='store_true',
@@ -726,6 +730,7 @@ def build_fuzzers_impl(  # pylint: disable=too-many-arguments,too-many-locals,to
     dwarf_version,
     graph_plugin,
     debug,
+    out_directory,
     mount_path=None):
   """Builds fuzzers."""
   if not build_image_impl(project, commit):
@@ -735,6 +740,8 @@ def build_fuzzers_impl(  # pylint: disable=too-many-arguments,too-many-locals,to
       assert(aflgo_mode in constants.AFLGO_MODES)
       if aflgo_mode == 'targets':
           assert(isinstance(aflgo_targets, str) and len(aflgo_targets) > 0)
+
+  out_directory = out_directory if out_directory else project.out
 
   if clean:
     logging.info('Cleaning existing build artifacts.')
@@ -749,7 +756,7 @@ def build_fuzzers_impl(  # pylint: disable=too-many-arguments,too-many-locals,to
     docker_run([
         '-m', DOCKER_MEMLIMIT,
         '-v',
-        '%s:/out' % project.out, '-t',
+        '%s:/out' % out_directory, '-t',
         fq_project_name, 'timeout', '-k', '120', f'{DOCKER_TIMEOUT}{DOCKER_TIMEOUT_UNIT}', '/bin/bash', '-c', 'rm -rf /out/*'
     ])
 
@@ -819,7 +826,7 @@ def build_fuzzers_impl(  # pylint: disable=too-many-arguments,too-many-locals,to
   command += [
       '-m', DOCKER_MEMLIMIT,
       '-v',
-      '%s:/out' % project.out, '-v',
+      '%s:/out' % out_directory, '-v',
       '%s:/work' % project.work, '-t',
       fq_project_name,
       'timeout', '-k', '120', '-s', 'KILL', f'{DOCKER_TIMEOUT}{DOCKER_TIMEOUT_UNIT}',
@@ -857,6 +864,7 @@ def build_fuzzers(args):
                             args.dwarf_version,
                             args.graph_plugin,
                             args.debug,
+                            args.out_directory,
                             mount_path=args.mount_path)
 
 
