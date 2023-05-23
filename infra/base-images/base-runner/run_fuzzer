@@ -262,7 +262,9 @@ set -e
 cp -r $FUZZER_OUT $SAVED_FUZZER_OUT
 
 # Unmount tmpfs
-umount $FUZZER_OUT
+for i in {1..30}; do
+	{ umount $FUZZER_OUT && break; } || { echo "[+] Umount failed ($i)" && sleep 10; }
+done
 
 # Since the docker service runs as root we better make sure the user on the
 # host can r/w/x the files we create here.
