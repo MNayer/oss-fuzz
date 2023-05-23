@@ -583,7 +583,7 @@ def build_image_impl(project, commit, cache=True, pull=False):
   if pull and not pull_images(project.language):
     return False
 
-  build_args = []
+  build_args = ['--network', 'host']
   if not cache:
     build_args.append('--no-cache')
 
@@ -769,6 +769,7 @@ def build_fuzzers_impl(  # pylint: disable=too-many-arguments,too-many-locals,to
 
   else:
     logging.info('Keeping existing build artifacts as-is (if any).')
+
   env = [
       'FUZZING_ENGINE=' + engine,
       'SANITIZER=' + sanitizer,
@@ -825,6 +826,7 @@ def build_fuzzers_impl(  # pylint: disable=too-many-arguments,too-many-locals,to
 
   command += [
       '-m', DOCKER_MEMLIMIT,
+      '--network', 'host',
       '-v',
       '%s:/out' % out_directory, '-v',
       '%s:/work' % project.work, '-t',

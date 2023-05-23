@@ -1,8 +1,41 @@
 #!/bin/bash
 
+params=$@
+git_cache_dir=/gitcache
+git_cache_host=localhost:5000
+mkdir -p $git_cache_dir
+
 if [ $1 = "clone" ]; then
-	for i in {1..2}; do
-		dst_path=$(git_orig $@ 2>&1 | grep "Cloning into\|fatal: destination path" | sed "s/Cloning into '\([^']*\)'.*\|fatal: destination path '\([^']*\)'.*/\1\2/")
+	url=$(echo "$@" | sed 's/.*\(https[^[:space:]]*\).*/\1/g')
+	repo_name=$(echo $url | sed 's/\/*$//' | rev | cut -d'/' -f1 | rev | sed 's/\.git//')
+	url_hash=$(echo -n $url | md5sum | cut -d' ' -f1)
+
+	if [ -z $(wget $git_cache_host 2>&1 | grep "failed: Connection refused") ]; then
+		echo "[+] Using git cache"
+		if [ ! -d $git_cache_dir/$url_hash/$repo_name ]; then
+			echo "[+] Acquire git repo from git cache"
+			mkdir -p $git_cache_dir/$url_hash
+			pushd $git_cache_dir/$url_hash
+			for i in {1..360}; do
+				wget -O $repo_name.tar http://$git_cache_host/\?giturl\=$url 2>&1 | grep "200 OK" && \
+					tar -xf $repo_name.tar && \
+					rm $repo_name.tar && \
+					ls && \
+					mv $url_hash $repo_name && \
+					break || sleep 5 && false
+			done
+			test ! $? = 0 && echo "[!] Could not acquire repository from git cache" && exit 1
+			popd
+		else
+			echo "[+] Git repo available in local cache directory"
+		fi
+		params=$(echo "$params" | sed "s^$url^file://$git_cache_dir/$url_hash/$repo_name^")
+	else
+		echo "[+] Do not use git cache"
+	fi
+
+	#for i in {1..2}; do
+		dst_path=$(git_orig $params 2>&1 | grep "Cloning into\|fatal: destination path" | sed "s/Cloning into '\([^']*\)'.*\|fatal: destination path '\([^']*\)'.*/\1\2/")
 		if [ ! ${PIPESTATUS[0]} = 0 ]; then
 			rm -rf $dst_path
 		else
@@ -11,7 +44,7 @@ if [ $1 = "clone" ]; then
 			echo "$(pwd),$(git rev-parse HEAD)" >> $OUT/commits.csv
 			popd
 		fi
-	done
+	#done
 else
 	git_orig $@
 fi
