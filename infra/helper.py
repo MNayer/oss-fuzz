@@ -434,9 +434,9 @@ def get_parser():  # pylint: disable=too-many-statements
                                     dest='out_directory',
                                     default=None,
                                     help='overwrite default out directory')
-#  reproduce_parser.add_argument('--commit',
-#                                    help='project commit to rollback to',
-#                                    default="")
+  reproduce_parser.add_argument('--commit',
+                                    help='project commit to rollback to',
+                                    default="")
   reproduce_parser.add_argument('project',
                                 help='name of the project or path (external)')
   reproduce_parser.add_argument('fuzzer_name', help='name of the fuzzer')
