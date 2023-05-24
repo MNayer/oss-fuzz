@@ -91,6 +91,7 @@ class Project:
       build_integration_path=constants.DEFAULT_EXTERNAL_BUILD_INTEGRATION_PATH):
     self.is_external = is_external
     self.commit = commit
+    self.out_directory = None
     if self.is_external:
       self.path = os.path.abspath(project_name_or_path)
       self.name = os.path.basename(self.path)
@@ -127,7 +128,7 @@ class Project:
   @property
   def out(self):
     """Returns the out dir for the project. Creates it if needed."""
-    return _get_out_dir(self.name, self.commit)
+    return self.out_directory if self.out_directory != None else _get_out_dir(self.name, self.commit)
 
   @property
   def work(self):
@@ -738,7 +739,7 @@ def build_fuzzers_impl(  # pylint: disable=too-many-arguments,too-many-locals,to
     mount_path=None):
   """Builds fuzzers."""
   if out_directory:
-      project.out = out_directory
+      project.out_directory = out_directory
   if not build_image_impl(project, commit):
     return False
 
@@ -1169,7 +1170,7 @@ def reproduce_impl(  # pylint: disable=too-many-arguments
     err_result=False):
   """Reproduces a testcase in the container."""
   if out_directory:
-      project.out = out_directory
+      project.out_directory = out_directory
   if not check_project_exists(project):
     return err_result
 
