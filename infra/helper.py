@@ -429,9 +429,13 @@ def get_parser():  # pylint: disable=too-many-statements
                                 action='store_true',
                                 default=False,
                                 help='enable debug mode (bash instead of compile as docker CMD)')
-  reproduce_parser.add_argument('--commit',
-                                    help='project commit to rollback to',
-                                    default="")
+  reproduce_parser.add_argument('--out_directory',
+                                    dest='out_directory',
+                                    default=None,
+                                    help='overwrite default out directory')
+#  reproduce_parser.add_argument('--commit',
+#                                    help='project commit to rollback to',
+#                                    default="")
   reproduce_parser.add_argument('project',
                                 help='name of the project or path (external)')
   reproduce_parser.add_argument('fuzzer_name', help='name of the fuzzer')
@@ -733,6 +737,8 @@ def build_fuzzers_impl(  # pylint: disable=too-many-arguments,too-many-locals,to
     out_directory,
     mount_path=None):
   """Builds fuzzers."""
+  if out_directory:
+      project.out = out_directory
   if not build_image_impl(project, commit):
     return False
 
@@ -740,8 +746,6 @@ def build_fuzzers_impl(  # pylint: disable=too-many-arguments,too-many-locals,to
       assert(aflgo_mode in constants.AFLGO_MODES)
       if aflgo_mode == 'targets':
           assert(isinstance(aflgo_targets, str) and len(aflgo_targets) > 0)
-
-  out_directory = out_directory if out_directory else project.out
 
   if clean:
     logging.info('Cleaning existing build artifacts.')
@@ -756,7 +760,7 @@ def build_fuzzers_impl(  # pylint: disable=too-many-arguments,too-many-locals,to
     docker_run([
         '-m', DOCKER_MEMLIMIT,
         '-v',
-        '%s:/out' % out_directory, '-t',
+        '%s:/out' % project.out, '-t',
         fq_project_name, 'timeout', '-k', '120', f'{DOCKER_TIMEOUT}{DOCKER_TIMEOUT_UNIT}', '/bin/bash', '-c', 'rm -rf /out/*'
     ])
 
@@ -1148,7 +1152,7 @@ def run_fuzzer(args):
 
 def reproduce(args):
   """Reproduces a specific test case from a specific project."""
-  return reproduce_impl(args.project, args.fuzzer_name, args.valgrind, args.debug, args.e,
+  return reproduce_impl(args.project, args.fuzzer_name, args.valgrind, args.debug, args.out_directory, args.e,
                         args.fuzzer_args, args.testcase_path)
 
 
@@ -1157,12 +1161,15 @@ def reproduce_impl(  # pylint: disable=too-many-arguments
     fuzzer_name,
     valgrind,
     debug,
+    out_directory,
     env_to_add,
     fuzzer_args,
     testcase_path,
     run_function=docker_run,
     err_result=False):
   """Reproduces a testcase in the container."""
+  if out_directory:
+      project.out = out_directory
   if not check_project_exists(project):
     return err_result
 
