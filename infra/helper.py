@@ -1100,8 +1100,8 @@ def coverage(args):
 
 def run_fuzzer(args):
   """Runs a fuzzer in the container."""
-  if out_directory:
-      args.project.out_directory = out_directory
+  if args.out_directory:
+      args.project.out_directory = args.out_directory
   if not check_project_exists(args.project):
     return False
 
