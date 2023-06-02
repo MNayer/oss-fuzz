@@ -375,6 +375,10 @@ def get_parser():  # pylint: disable=too-many-statements
                                     action='store_true',
                                     default=False,
                                     help='enable debug mode (bash instead of run_fuzzer as docker CMD)')
+  run_fuzzer_parser.add_argument('--out_directory',
+                                    dest='out_directory',
+                                    default=None,
+                                    help='overwrite default out directory')
   run_fuzzer_parser.add_argument('--mem_limit',
                                     help='memory limit (in mb) for each run',
                                     default="")
@@ -1096,6 +1100,8 @@ def coverage(args):
 
 def run_fuzzer(args):
   """Runs a fuzzer in the container."""
+  if out_directory:
+      args.project.out_directory = out_directory
   if not check_project_exists(args.project):
     return False
 
