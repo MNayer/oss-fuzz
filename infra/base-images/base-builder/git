@@ -2,13 +2,14 @@
 
 params=$@
 git_cache_dir=/gitcache
-git_cache_host=localhost:5000
+git_cache_host=127.0.0.1:5000
 mkdir -p $git_cache_dir
 
 if [ $1 = "clone" ]; then
 	url=$(echo "$@" | sed 's/.*\(https[^[:space:]]*\).*/\1/g')
 	repo_name=$(echo $url | sed 's/\/*$//' | rev | cut -d'/' -f1 | rev | sed 's/\.git//')
 	url_hash=$(echo -n $url | md5sum | cut -d' ' -f1)
+	echo "[+] git url: '$url'"
 
 	if [ -z $(wget $git_cache_host 2>&1 | grep "failed: Connection refused") ]; then
 		echo "[+] Using git cache"
@@ -17,12 +18,11 @@ if [ $1 = "clone" ]; then
 			mkdir -p $git_cache_dir/$url_hash
 			pushd $git_cache_dir/$url_hash
 			for i in {1..360}; do
-				{ wget -O $repo_name.tar http://$git_cache_host/\?giturl\=$url 2>&1 | grep "200 OK" && \
-					tar -xf $repo_name.tar && \
-					rm $repo_name.tar && \
-					ls && \
-					mv $url_hash $repo_name && \
-					break; } || { sleep 5 && false; }
+				{ echo "[+] Try to acquire repo '$url'from host $git_cache_host" && wget -O $repo_name.tar http://$git_cache_host/\?giturl\=$url 2>&1 | grep "200 OK" && \
+					echo "[+] Unpack repository" && tar -xf $repo_name.tar && \
+					echo "[+] Remove packed repository" && rm $repo_name.tar && \
+					echo "[+] Rename the repository" && mv $url_hash $repo_name && \
+					break; } || { echo "[!] Download failed" && sleep 5 && false; }
 			done
 			test ! $? = 0 && echo "[!] Could not acquire repository from git cache" && exit 1
 			popd
