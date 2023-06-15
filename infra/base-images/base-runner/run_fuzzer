@@ -28,12 +28,18 @@ DEBUGGER=${DEBUGGER:-}
 FUZZER=$1
 shift
 
+CAMPAIGN_DIR=/tmp/fuzzing_crashminer/
+if [ ! -d $CAMPAIGN_DIR ]; then
+	mkdir -p $CAMPAIGN_DIR
+fi
+TMPDIR=$(mktemp -d --tmpdir=$CAMPAIGN_DIR)
+
 # This env var is set by CIFuzz. CIFuzz fills this directory with the corpus
 # from ClusterFuzz.
 CORPUS_DIR=${CORPUS_DIR:-}
 if [ -z "$CORPUS_DIR" ]
 then
-  CORPUS_DIR="/tmp/${FUZZER}_corpus"
+  CORPUS_DIR="${TMPDIR}/${FUZZER}_corpus"
   rm -rf $CORPUS_DIR && mkdir -p $CORPUS_DIR
 fi
 
@@ -47,16 +53,11 @@ fi
 if [[ "$RUN_FUZZER_MODE" = interactive ]]; then
   FUZZER_OUT="$OUT/${FUZZER}_${FUZZING_ENGINE}_${SANITIZER}_out"
 else
-  FUZZER_OUT="/tmp/${FUZZER}_${FUZZING_ENGINE}_${SANITIZER}_out"
+  FUZZER_OUT="${TMPDIR}/${FUZZER}_${FUZZING_ENGINE}_${SANITIZER}_out"
 fi
 
 SAVED_FUZZER_OUT=$FUZZER_OUT
-FUZZER_OUT=/tmp/out
-
-mkdir -p $FUZZER_OUT
-
-# Create tmpfs
-mount -t tmpfs -o size=16G tmpfs $FUZZER_OUT
+FUZZER_OUT=$TMPDIR/out
 
 function get_dictionary() {
   local options_file="$FUZZER.options"
@@ -216,7 +217,7 @@ elif [[ "$FUZZING_ENGINE" = honggfuzz ]]; then
   # -P: use persistent mode of fuzzing (i.e. LLVMFuzzerTestOneInput)
   # -f: location of the initial (and destination) file corpus
   # -n: number of fuzzing threads (and processes)
-  CMD_LINE="$OUT/honggfuzz -n 1 --exit_upon_crash -R /tmp/${FUZZER}_honggfuzz.report -W $FUZZER_OUT -v -z -P -f \"$CORPUS_DIR\" $(get_dictionary) $* -- \"$OUT/$FUZZER\""
+  CMD_LINE="$OUT/honggfuzz -n 1 --exit_upon_crash -R ${TMPDIR}/${FUZZER}_honggfuzz.report -W $FUZZER_OUT -v -z -P -f \"$CORPUS_DIR\" $(get_dictionary) $* -- \"$OUT/$FUZZER\""
 
 else
 
@@ -261,17 +262,13 @@ set -e
 # Copy output files to output directory
 cp -r $FUZZER_OUT $SAVED_FUZZER_OUT
 
-# Unmount tmpfs
-umounted=0
-for i in {1..30}; do
-	{ umount $FUZZER_OUT && umounted=1; break; } || { echo "[+] Umount failed ($i)" && sleep 30; }
-done
-if [ $umounted = 0 ]; then
-	echo "[!] Cannot umount $FUZZER_OUT"
-	exit 1
-fi
+# Remove tmpdir
+sleep 30
+rm -rf $TMPDIR
 
 # Since the docker service runs as root we better make sure the user on the
 # host can r/w/x the files we create here.
-chmod -R 777 $OUT_SAVE
+if [ $CONTAINER = "docker" ]; then
+	chmod -R 777 $OUT_SAVE
+fi
 #chmod -R 777 $WORK

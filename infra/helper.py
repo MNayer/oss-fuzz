@@ -370,6 +370,9 @@ def get_parser():  # pylint: disable=too-many-statements
                                     action='store_true',
                                     help='disable directed fuzzing (use coverage guided fuzzing only)',
                                     default=False)
+  run_fuzzer_parser.add_argument('--apptainer',
+                                    help='use apptainer and the specifiec apptainer image instead of docker',
+                                    default="")
   run_fuzzer_parser.add_argument('--debug',
                                     dest='debug',
                                     action='store_true',
@@ -615,6 +618,11 @@ def _env_to_docker_args(env_list):
   return sum([['-e', v] for v in env_list], [])
 
 
+def _env_to_apptainer_args(env_list):
+  """Turns envirnoment variable list into apptainer arguments."""
+  return sum([['--env', v] for v in env_list], [])
+
+
 def workdir_from_lines(lines, default='/src'):
   """Gets the WORKDIR from the given lines."""
   for line in reversed(lines):  # reversed to get last WORKDIR.
@@ -646,6 +654,28 @@ def docker_run(run_args, print_output=True, with_timeout=False):
   # Support environments with a TTY.
   if sys.stdin.isatty():
     command.append('-i')
+
+  command.extend(run_args)
+
+  logging.info('Running: %s.', _get_command_string(command))
+  stdout = None
+  if not print_output:
+    stdout = open(os.devnull, 'w')
+
+  try:
+    subprocess.check_call(command, stdout=stdout, stderr=subprocess.STDOUT)
+  except subprocess.CalledProcessError as err:
+    if with_timeout and err.returncode == 124:
+        # exit code 124 means command did run, but timed out
+        return True
+    return False
+
+  return True
+
+
+def apptainer_run(run_args, print_output=True, with_timeout=False):
+  """Calls `apptainer run`."""
+  command = ['apptainer', 'run']
 
   command.extend(run_args)
 
@@ -1098,29 +1128,7 @@ def coverage(args):
   return result
 
 
-def run_fuzzer(args):
-  """Runs a fuzzer in the container."""
-  if args.out_directory:
-      args.project.out_directory = args.out_directory
-  if not check_project_exists(args.project):
-    return False
-
-  if not _check_fuzzer_exists(args.project, args.fuzzer_name):
-    return False
-
-  env = [
-      'FUZZING_ENGINE=' + args.engine,
-      'SANITIZER=' + args.sanitizer,
-      'AFLGO_EXPLOITATION=' + args.aflgo_exploitation,
-      'AFLGO_DISABLE_DIRECTED=%s' % ('1' if args.aflgo_disable_directed else ''),
-      'TIMEOUT=%s' % args.timeout,
-      'MEM_LIMIT=' + args.mem_limit,
-      'RUN_FUZZER_MODE=interactive',
-  ]
-
-  if args.e:
-    env += args.e
-
+def docker_run_fuzzer(env, args):
   run_args = _env_to_docker_args(env)
 
   if args.corpus_dir:
@@ -1140,7 +1148,6 @@ def run_fuzzer(args):
       '%s:/out' % args.project.out,
       '-t' if not args.debug else '-ti',
       'gcr.io/oss-fuzz-base/base-runner',
-      #'timeout', '-k', '60', args.timeout,
       'run_fuzzer' if not args.debug else 'bash'])
   if not args.debug:
     run_args.extend([args.fuzzer_name] + args.fuzzer_args)
@@ -1148,7 +1155,6 @@ def run_fuzzer(args):
 
   # Change build directory permission recursively
   docker_run([
-      #'-v', '%s:/corpus' % corpus_dir,
       '-v', '%s:/out' % args.project.out,
       'gcr.io/oss-fuzz-base/base-runner',
       'chmod', '-R', '777', '/out'
@@ -1156,6 +1162,70 @@ def run_fuzzer(args):
 
   return res
 
+
+def apptainer_run_fuzzer(env, args):
+  run_args = _env_to_apptainer_args(env)
+
+  if args.corpus_dir:
+    if not os.path.exists(args.corpus_dir):
+      logging.error('The path provided in --corpus-dir argument does not exist')
+      return False
+    corpus_dir = os.path.realpath(args.corpus_dir)
+    run_args.extend([
+        '--bind',
+        '{corpus_dir}:/tmp/{fuzzer}_corpus'.format(corpus_dir=corpus_dir,
+                                                   fuzzer=args.fuzzer_name)
+    ])
+
+  run_args.extend([
+      '--memory', DOCKER_MEMLIMIT,
+      '--bind',
+      '%s:/out' % args.project.out,
+      args.apptainer,
+#      'docker-daemon:gcr.io/oss-fuzz-base/base-runner:latest',
+      'run_fuzzer'])
+  run_args.extend([args.fuzzer_name] + args.fuzzer_args)
+  res = apptainer_run(run_args, with_timeout=True)
+
+  return res
+
+
+def run_fuzzer(args):
+  """Runs a fuzzer in the container."""
+  if args.apptainer != None and args.apptainer != "":
+    service = 'apptainer'
+  else:
+    service = 'docker'
+  if args.out_directory:
+    args.project.out_directory = args.out_directory
+  if not check_project_exists(args.project):
+    return False
+
+  if not _check_fuzzer_exists(args.project, args.fuzzer_name):
+    return False
+
+  env = [
+      'FUZZING_ENGINE=' + args.engine,
+      'SANITIZER=' + args.sanitizer,
+      'AFLGO_EXPLOITATION=' + args.aflgo_exploitation,
+      'AFLGO_DISABLE_DIRECTED=%s' % ('1' if args.aflgo_disable_directed else ''),
+      'TIMEOUT=%s' % args.timeout,
+      'MEM_LIMIT=' + args.mem_limit,
+      'RUN_FUZZER_MODE=interactive',
+      'CONTAINER=' + service,
+  ]
+
+  if args.e:
+    env += args.e
+
+  if service == 'docker':
+    res = docker_run_fuzzer(env, args)
+  elif service == 'apptainer':
+    res = apptainer_run_fuzzer(env, args)
+  else:
+    raise ValueError(f'Invalid service: {service}')
+
+  return res
 
 def reproduce(args):
   """Reproduces a specific test case from a specific project."""
