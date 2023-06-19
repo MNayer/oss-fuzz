@@ -280,5 +280,6 @@ rm -rf $TMPDIR
 # host can r/w/x the files we create here.
 if [ $CONTAINER = "docker" ]; then
 	chmod -R 777 $OUT_SAVE
+	chmod -R 777 $SAVED_FUZZER_OUT
 fi
 #chmod -R 777 $WORK
