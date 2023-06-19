@@ -270,7 +270,7 @@ fi
 set -e
 
 # Copy output files to output directory
-cp -r $FUZZER_OUT $SAVED_FUZZER_OUT
+cp -r $FUZZER_OUT/* $SAVED_FUZZER_OUT
 
 # Remove tmpdir
 sleep 30
@@ -280,6 +280,6 @@ rm -rf $TMPDIR
 # host can r/w/x the files we create here.
 if [ $CONTAINER = "docker" ]; then
 	chmod -R 777 $OUT_SAVE
-	chmod -R 777 $SAVED_FUZZER_OUT
+	chmod -R 666 $SAVED_FUZZER_OUT
 fi
 #chmod -R 777 $WORK
