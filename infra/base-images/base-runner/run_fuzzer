@@ -279,7 +279,7 @@ rm -rf $TMPDIR
 # Since the docker service runs as root we better make sure the user on the
 # host can r/w/x the files we create here.
 if [ $CONTAINER = "docker" ]; then
-	chmod -R 777 $OUT_SAVE
-	chmod -R 666 $SAVED_FUZZER_OUT
+	chmod -R a+rw $OUT_SAVE
+	chmod -R a+rw $SAVED_FUZZER_OUT
 fi
 #chmod -R 777 $WORK
