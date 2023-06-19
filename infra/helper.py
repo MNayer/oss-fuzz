@@ -382,6 +382,10 @@ def get_parser():  # pylint: disable=too-many-statements
                                     dest='out_directory',
                                     default=None,
                                     help='overwrite default out directory')
+  run_fuzzer_parser.add_argument('--fuzzer_out_directory',
+                                    dest='fuzzer_out_directory',
+                                    default=None,
+                                    help='overwrite default fuzzer out directory')
   run_fuzzer_parser.add_argument('--mem_limit',
                                     help='memory limit (in mb) for each run',
                                     default="")
@@ -498,7 +502,7 @@ def _check_fuzzer_exists(project, fuzzer_name):
   command = ['docker', 'run', '--rm']
   command.extend(['-v', '%s:/out' % project.out])
   command.append(BASE_RUNNER_IMAGE)
-
+  print("fuzzer_name", fuzzer_name)
   command.extend(['/bin/bash', '-c', 'test -f /out/%s' % fuzzer_name])
 
   try:
@@ -1142,6 +1146,12 @@ def docker_run_fuzzer(env, args):
                                                    fuzzer=args.fuzzer_name)
     ])
 
+  if args.fuzzer_out_directory != None:
+    run_args.extend([
+      '-v',
+      '%s:/fuzzer_out' % args.fuzzer_out_directory,
+    ])
+
   run_args.extend([
       '-m', DOCKER_MEMLIMIT,
       '-v',
@@ -1175,6 +1185,12 @@ def apptainer_run_fuzzer(env, args):
         '--bind',
         '{corpus_dir}:/tmp/{fuzzer}_corpus'.format(corpus_dir=corpus_dir,
                                                    fuzzer=args.fuzzer_name)
+    ])
+
+  if args.fuzzer_out_directory != None:
+    run_args.extend([
+      '--bind',
+      '%s:/fuzzer_out' % args.fuzzer_out_directory,
     ])
 
   run_args.extend([
@@ -1214,6 +1230,9 @@ def run_fuzzer(args):
       'RUN_FUZZER_MODE=interactive',
       'CONTAINER=' + service,
   ]
+
+  if args.fuzzer_out_directory != None:
+      env.append('FUZZER_OUT=/fuzzer_out')
 
   if args.e:
     env += args.e
