@@ -28,12 +28,6 @@ DEBUGGER=${DEBUGGER:-}
 FUZZER=$1
 shift
 
-# Make sure we can execute all necessary files
-chmod +x $OUT/$FUZZER
-if [ -f $OUT/afl-fuzz ]; then
-	chmod +x $OUT/afl-fuzz
-fi
-
 CAMPAIGN_DIR=/tmp/fuzzing_crashminer/
 if [ ! -d $CAMPAIGN_DIR ]; then
 	mkdir -p $CAMPAIGN_DIR
