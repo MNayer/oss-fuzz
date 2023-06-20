@@ -499,20 +499,25 @@ def check_project_exists(project):
 
 def _check_fuzzer_exists(project, fuzzer_name):
   """Checks if a fuzzer exists."""
-  command = ['docker', 'run', '--rm']
-  command.extend(['-v', '%s:/out' % project.out])
-  command.append(BASE_RUNNER_IMAGE)
-  print("fuzzer_name", fuzzer_name)
-  command.extend(['/bin/bash', '-c', 'test -f /out/%s' % fuzzer_name])
+  fuzzer_path = os.path.join(project.out, fuzzer_name)
+  if os.path.exists(fuzzer_path) and os.path.isfile(fuzzer_path):
+    return True
+  logging.error('%s does not seem to exist. Please run build_fuzzers first.',
+                fuzzer_name)
+  return False
+  #command = ['docker', 'run', '--rm']
+  #command.extend(['-v', '%s:/out' % project.out])
+  #command.append(BASE_RUNNER_IMAGE)
+  #command.extend(['/bin/bash', '-c', 'test -f /out/%s' % fuzzer_name])
 
-  try:
-    subprocess.check_call(command)
-  except subprocess.CalledProcessError:
-    logging.error('%s does not seem to exist. Please run build_fuzzers first.',
-                  fuzzer_name)
-    return False
+  #try:
+  #  subprocess.check_call(command)
+  #except subprocess.CalledProcessError:
+  #  logging.error('%s does not seem to exist. Please run build_fuzzers first.',
+  #                fuzzer_name)
+  #  return False
 
-  return True
+  #return True
 
 
 def _get_absolute_path(path):
