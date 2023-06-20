@@ -1179,6 +1179,7 @@ def docker_run_fuzzer(env, args):
 
 
 def apptainer_run_fuzzer(env, args):
+  env.extend(['AFL_NO_AFFINITY=1'])
   run_args = _env_to_apptainer_args(env)
 
   if args.corpus_dir:
@@ -1199,7 +1200,7 @@ def apptainer_run_fuzzer(env, args):
     ])
 
   run_args.extend([
-      '--memory', DOCKER_MEMLIMIT,
+#      '--memory', DOCKER_MEMLIMIT, # Causes errors on cluster
       '--bind',
       '%s:/out' % args.project.out,
       args.apptainer,
