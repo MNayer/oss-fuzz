@@ -1235,6 +1235,7 @@ def run_fuzzer(args):
       'MEM_LIMIT=' + args.mem_limit,
       'RUN_FUZZER_MODE=interactive',
       'CONTAINER=' + service,
+      'PROJECT=' + args.project,
   ]
 
   if args.fuzzer_out_directory != None:
