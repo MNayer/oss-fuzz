@@ -1235,7 +1235,7 @@ def run_fuzzer(args):
       'MEM_LIMIT=' + args.mem_limit,
       'RUN_FUZZER_MODE=interactive',
       'CONTAINER=' + service,
-      'PROJECT=' + args.project,
+      'PROJECT=' + args.project.name,
   ]
 
   if args.fuzzer_out_directory != None:
@@ -1280,7 +1280,9 @@ def reproduce_impl(  # pylint: disable=too-many-arguments
     return err_result
 
   debugger = ''
-  env = []
+  env = [
+    'PROJECT=' + project.name,
+  ]
   image_name = 'base-runner'
 
   if valgrind:
