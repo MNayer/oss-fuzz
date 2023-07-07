@@ -17,6 +17,8 @@
 
 echo "---------------------------------------------------------------"
 
+project_directory=$SRC/$PROJECT
+
 # Based on https://github.com/aflgo/oss-fuzz.git
 # Since we can't rely on the cloned source code directory
 # to be called exactly like the project (e. g.
@@ -37,6 +39,7 @@ if ! [ -z "$COMMIT" ]; then
       if git checkout -f $COMMIT; then
         echo "INFO: checked out commit $COMMIT of project $PROJECT"
         checkout_success=1
+				project_directory=$directory
         popd >/dev/null
         break
       fi
@@ -60,12 +63,25 @@ fi
 # Relevant for AFLGo, since it build twice and if a build directory is being
 # created during the first build it should be removed for the second build to
 # complete successfully.
-if [ ! -d $SRC/build ]; then
-	src_build_exists=1
-fi
-if [ ! -d $SRC/$PROJECT/build ]; then
-	proj_build_exists=1
-fi
+find $SRC -type d | sort > /tmp/directories.log
+#if [ ! -d $SRC/build ]; then
+#	src_build_exists=1
+#fi
+#if [ ! -d $project_directory/build ]; then
+#	proj_build_exists=1
+#fi
+#if [ ! -d $SRC/corpus ]; then
+#	src_corpus_exsits=1
+#fi
+#if [ ! -d $project_directory/corpus ]; then
+#	proj_corpus_exists=1
+#fi
+#if [ ! -d $SRC/afl_testcases ]; then
+#	src_afl_testcases_exists=1
+#fi
+#if [ ! -d $project_directory/afl_testcases ]; then
+#	proj_afl_testcases_exists=1
+#fi
 
 if [ "$SANITIZER" = "dataflow" ] && [ "$FUZZING_ENGINE" != "dataflow" ]; then
   echo "ERROR: 'dataflow' sanitizer can be used with 'dataflow' engine only."
@@ -347,7 +363,7 @@ if [[ "$FUZZING_ENGINE" == aflgo ]]; then
 
 	chmod +x $SRC/showlinenum.awk
 
-	pushd $SRC/$PROJECT > /dev/null
+	pushd $project_directory > /dev/null
 
 	sleep 0.5 #Workaround for "Text file busy"
 	if [[ "$AFLGO_MODE" == recent ]]; then
@@ -415,10 +431,15 @@ if [[ "$FUZZING_ENGINE" == aflgo && "$AFLGO_MODE" != coverage ]]; then
 
   #Clean up. Ignore non-zero exit codes.
   set +eu
+	  for dir in $(find $SRC -type d | sort); do
+			if [ -z $(cat /tmp/directories.log | grep "^$dir$") ]; then
+				rm -rf $dir
+			fi
+		done
 		find $WORK -maxdepth 1 -mindepth 1 | grep -v "^$WORK/tmp" | xargs rm -rf
-		test -z $src_build_exists || rm -rf $SRC/build
-		test -z $proj_build_exists || rm -rf $SRC/$PROJECT/build
-    pushd $SRC/$PROJECT >/dev/null
+		#test -z $src_build_exists || rm -rf $SRC/build
+		#test -z $proj_build_exists || rm -rf $project_directory/build
+    pushd $project_directory >/dev/null
     make clean
     make distclean
     popd > /dev/null

@@ -1,0 +1,155 @@
+#!/usr/bin/python3
+
+import re
+import json
+import subprocess
+import os, os.path as osp
+
+###############################################################################
+# Config                                                                      #
+###############################################################################
+
+# Path to llvm-symbolizer
+LLVM_SYMBOLIZER = "llvm-symbolizer.bak"
+
+# Clusterfuzz build prefixes. Function which come from this directories
+# are ignored in the processing steps. Since "/src/llvm-project" is too
+# restrictive when the fuzz target project is llvm itself, we use the less
+# restrictive "/src/llvm-project/compiler-rt/lib/fuzzer/" filter, but
+# only if the project is LLVM.
+IGNORE_BUILD_PREFIXES = [
+    "/src/llvm-project/compiler-rt/lib/fuzzer/",
+    "/src/aflplusplus",
+    "/src/honggfuzz",
+    "/src/libfuzzer",
+    "/src/aflgo",
+]
+IGNORE_BUILD_PREFIXES_RESTRICTIVE = IGNORE_BUILD_PREFIXES + ["/src/llvm-project"]
+
+
+def do_run(cmd, cwd=None):
+    res = subprocess.run(cmd, cwd=cwd, capture_output=True)
+    log = {
+        "returncode": res.returncode,
+        "stdout": res.stdout.decode("utf-8", errors="ignore"),
+        "stderr": res.stderr.decode("utf-8", errors="ignore"),
+    }
+    return log
+
+
+def llvm_symbolize(targetpath, addr):
+    #cmd = f"{LLVM_SYMBOLIZER} -f=short --no-inlines --obj={targetpath} {hex(addr)}"
+    cmd = f"{LLVM_SYMBOLIZER} -f=short --obj={targetpath} {hex(addr)}"
+    cmd = cmd.split(" ")
+    res = do_run(cmd)
+    return res["stdout"]
+
+
+def symbolize_frame(frame, targetpath):
+    symbolized = llvm_symbolize(targetpath, frame["binaddr"])
+    name, fq_path = symbolized.split("\n")[0:2]
+    fpath, line, column = fq_path.split(":")
+    function = {
+        "name": name,
+        "linenum": int(line),
+        "column": int(column),
+        "fpath": fpath,
+    }
+    return function
+
+
+def parse_frame(frame):
+    match = re.search("#([0-9]+) 0x([0-9a-f]+) +\((.*)\+0x([0-9a-f]+)\)", frame)
+    frameno, memaddr, fpath, binaddr = match.groups()
+    frame = {
+        "frameno": int(frameno),
+        "memaddr": int(memaddr, 16),
+        "fpath": fpath,
+        "binaddr": int(binaddr, 16),
+    }
+    return frame
+
+
+def relevant_function(function, project_name):
+    # Remove functions whose filepath begins with ... and,
+    # hence, are not part of the fuzzed project.
+    ignore_build_prefixes = (
+        IGNORE_BUILD_PREFIXES
+        if "llvm" in project_name.lower()
+        else IGNORE_BUILD_PREFIXES_RESTRICTIVE
+    )
+    if any(function["fpath"].startswith(prefix) for prefix in ignore_build_prefixes):
+        return False
+    return True
+
+
+def parse_output(executable, output):
+    output = output.replace("\r\n", "\n")
+    match = re.search(r"SUMMARY: (.*)", output)
+    summary = match and match.group(1)
+    frames = re.findall(r"(#[0-9]+ .*)", output)
+    frames = list(map(parse_frame, frames))
+    project_name = os.getenv("PROJECT")
+
+    tracebacks = []
+    traceback = []
+    last_frameno = -1
+    for frame in frames:
+        frameno = frame["frameno"]
+        if frameno < last_frameno:
+            tracebacks.append(traceback)
+            traceback = []
+        if not frame["fpath"].startswith("/out/"):
+            continue
+        function = symbolize_frame(frame, executable)
+        if function["name"].startswith("??") or function["fpath"].startswith("??"):
+            continue
+        if not relevant_function(function, project_name):
+            continue
+        frame["function"] = function
+        traceback.append(frame)
+        last_frameno = frameno
+    tracebacks.append(traceback)
+
+    # Adjust the framenos
+    for traceback in tracebacks:
+        for idx, frame in enumerate(traceback):
+            frame["realframeno"] = frame["frameno"]
+            frame["frameno"] = idx
+
+    log = {
+        "summary": summary,
+        "tracebacks": tracebacks,
+    }
+
+    return log
+
+
+def main(executable, testcase, output_file=None):
+    res = do_run([executable, testcase])
+    output = res["stdout"] + res["stderr"]
+    log = parse_output(executable, output)
+    log["stdout"] = res["stdout"]
+    log["stderr"] = res["stderr"]
+    log["returncode"] = res["returncode"]
+
+    output_file = output_file if output_file else f"{testcase}.json"
+
+    with open(output_file, "w") as f:
+        f.write(json.dumps(log, indent=2))
+
+
+if __name__ == "__main__":
+    import sys
+
+    if len(sys.argv) != 3 and len(sys.argv) != 4:
+        print(f"Usage: {sys.argv[0]} <executable> <testcase> [output file]")
+        sys.exit(1)
+
+    if len(sys.argv) == 3:
+        main(sys.argv[1], sys.argv[2])
+    elif len(sys.argv) == 4:
+        main(sys.argv[1], sys.argv[2], sys.argv[3])
+    else:
+        printf("Fatal error")
+        sys.exit(1)

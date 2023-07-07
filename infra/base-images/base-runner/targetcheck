@@ -1,0 +1,57 @@
+#!/usr/bin/python3
+
+import json
+
+
+def fread_json(fpath):
+    with open(fpath, "r") as f:
+        return json.loads(f.read())
+
+
+def end_fuzzing():
+    print("[targetcheck] End fuzzing.")
+    sys.exit(1)
+
+
+def continue_fuzzing():
+    print("[targetcheck] Continue fuzzing.")
+    sys.exit(0)
+
+
+def main(executable, testcase):
+    target_log = fread_json("/out/testcase.json")
+    crash_log = fread_json(f"{testcase}.json")
+
+    if len(target_log["tracebacks"]) == 0:
+        continue_fuzzing()
+    if len(crash_log["tracebacks"]) == 0:
+        continue_fuzzing()
+
+    target_traceback = target_log["tracebacks"][0]
+    crash_traceback = crash_log["tracebacks"][0]
+
+    if len(target_traceback) == 0:
+        continue_fuzzing()
+    if len(crash_traceback) == 0:
+        continue_fuzzing()
+
+    target_frame = target_traceback[0]
+    crash_frame = crash_traceback[0]
+
+    if (
+        crash_frame["function"]["fpath"] == target_frame["function"]["fpath"]
+        and crash_frame["function"]["linenum"] == target_frame["function"]["linenum"]
+    ):
+        end_fuzzing()
+    else:
+        continue_fuzzing()
+
+
+if __name__ == "__main__":
+    import sys
+
+    if len(sys.argv) != 3:
+        print(f"Usage: {sys.argv[0]} <executable> <testcase>")
+        sys.exit(1)
+
+    main(sys.argv[1], sys.argv[2])

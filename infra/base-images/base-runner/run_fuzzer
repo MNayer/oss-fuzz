@@ -18,6 +18,9 @@
 # Fuzzer runner. Appends .options arguments and seed corpus to users args.
 # Usage: $0 <fuzzer_name> <fuzzer_args>
 
+# Make sure that all the tracebacks we create are not symbolized
+test -f /usr/local/bin/llvm-symbolizer && mv /usr/local/bin/llvm-symbolizer /usr/local/bin/llvm-symbolizer.bak
+
 echo "fuzzing started with: $0 $@"
 
 export PATH=$OUT:$PATH
@@ -186,9 +189,12 @@ elif [[ "$FUZZING_ENGINE" = aflgo ]]; then
 	# Set memory limit
 	test ! -z $MEM_LIMIT && AFL_FUZZER_ARGS="$AFL_FUZZER_ARGS -m $MEM_LIMIT"
 
+	# Set the campaign timeout
+	test ! -z $TIMEOUT && AFL_FUZZER_ARGS="$AFL_FUZZER_ARGS -q $TIMEOUT"
+
   # Ensure timeout is a bit larger than 1sec as some of the OSS-Fuzz fuzzers
   # are slower than this.
-  AFL_FUZZER_ARGS="$AFL_FUZZER_ARGS -t 5000+"
+  AFL_FUZZER_ARGS="$AFL_FUZZER_ARGS -h traceback -h targetcheck -t 5000+"
 
 	# Make sure there's at least on file in the corpus directory
 	if [ $(find $CORPUS_DIR -type f | wc -l) = 0 ]; then
@@ -256,11 +262,12 @@ if [ ! -z "$DEBUGGER" ]; then
 fi
 
 set +e
-if [ -z "${TIMEOUT:-}" ]; then
-	bash -c "$CMD_LINE"
-else
-	bash -c "timeout -k 120 $TIMEOUT $CMD_LINE"
-fi
+bash -c "$CMD_LINE"
+#if [ -z "${TIMEOUT:-}" ]; then
+#	bash -c "$CMD_LINE"
+#else
+#	bash -c "timeout -k 120 $TIMEOUT $CMD_LINE"
+#fi
 set -e
 
 # Copy output files to output directory
@@ -273,7 +280,7 @@ rm -rf $TMPDIR
 # Since the docker service runs as root we better make sure the user on the
 # host can r/w/x the files we create here.
 if [ $CONTAINER = "docker" ]; then
-	chmod -R a+rw $OUT_SAVE
-	chmod -R a+rw $SAVED_FUZZER_OUT
+	chmod -R a+rwx $OUT_SAVE
+	chmod -R a+rwx $SAVED_FUZZER_OUT
 fi
 #chmod -R 777 $WORK

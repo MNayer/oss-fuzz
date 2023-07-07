@@ -157,7 +157,7 @@ RUN precompile_honggfuzz
 
 RUN git clone https://github.com/MNayer/aflgo.git aflgo && \
     cd aflgo && \
-    git checkout 1a67aef8ace8adb536bc8be2db1c7d867ed0e204
+    git checkout c1860ef664f16eeb3eacd67ef65e6ecfbb9d773b
 
 COPY precompile_aflgo /usr/local/bin/
 RUN precompile_aflgo
@@ -183,5 +183,15 @@ COPY llvmsymbol.diff $SRC
 COPY detect_repo.py /opt/cifuzz/
 COPY bazel.bazelrc /root/.bazelrc
 COPY aflgo_driver.cpp $SRC
+
+# Some build scripts of projects pass the CFLAGS to the compile twice. This is
+# a problem for AFLGo, since it uses cl::opt in LLVM 11.0.0. In this version,
+# one can only specify cl::opt parameters via the cli only zero or one times,
+# so the build breaks. We fix this by using a shim around afl-clang-fast
+# (aflgo) and cleaning up the CFLAGS (outdir, targets, distance)
+# TODO: This does not work currently. It would be better to fix the bug in LLVM
+#RUN mv /src/aflgo/afl-clang-fast /src/aflgo/afl-clang-fast-orig
+#COPY afl-clang-fast-shim /src/aflgo/afl-clang-fast
+#COPY uniqflags /usr/local/bin/uniqflags
 
 CMD ["compile"]

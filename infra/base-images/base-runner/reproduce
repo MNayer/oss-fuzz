@@ -34,5 +34,6 @@ export FUZZING_ENGINE="libfuzzer"
 export SKIP_SEED_CORPUS="1"
 
 mv /usr/local/bin/llvm-symbolizer /usr/local/bin/llvm-symbolizer.bak
+traceback $OUT/$FUZZER $TESTCASE $OUT/testcase.json
+
 run_fuzzer $FUZZER $@ $TESTCASE
-mv /usr/local/bin/llvm-symbolizer.bak /usr/local/bin/llvm-symbolizer

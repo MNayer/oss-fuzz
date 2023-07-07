@@ -11,7 +11,7 @@ if [ $1 = "clone" ]; then
 	url_hash=$(echo -n $url | md5sum | cut -d' ' -f1)
 	echo "[+] git url: '$url'"
 
-	if [ -z $(wget $git_cache_host 2>&1 | grep "failed: Connection refused") ]; then
+	if ! wget $git_cache_host 2>&1 | grep "failed: Connection refused" &> /dev/null; then
 		echo "[+] Using git cache"
 		if [ ! -d $git_cache_dir/$url_hash/$repo_name ]; then
 			echo "[+] Acquire git repo from git cache"

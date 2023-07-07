@@ -120,4 +120,6 @@ COPY bad_build_check \
     targets_list \
     test_all.py \
     test_one.py \
+		traceback \
+		targetcheck \
     /usr/local/bin/
