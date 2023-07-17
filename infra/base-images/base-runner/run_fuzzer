@@ -19,7 +19,7 @@
 # Usage: $0 <fuzzer_name> <fuzzer_args>
 
 # Make sure that all the tracebacks we create are not symbolized
-test -f /usr/local/bin/llvm-symbolizer && mv /usr/local/bin/llvm-symbolizer /usr/local/bin/llvm-symbolizer.bak
+#test -f /usr/local/bin/llvm-symbolizer && mv /usr/local/bin/llvm-symbolizer /usr/local/bin/llvm-symbolizer.bak
 
 echo "fuzzing started with: $0 $@"
 

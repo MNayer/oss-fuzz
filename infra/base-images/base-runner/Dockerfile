@@ -32,8 +32,9 @@ COPY --from=temp-runner-binary-builder /root/.cargo/bin/rustfilt /usr/local/bin
 # Copy the binaries needed for code coverage and crash symbolization.
 COPY --from=base-clang /usr/local/bin/llvm-cov \
      /usr/local/bin/llvm-profdata \
-     /usr/local/bin/llvm-symbolizer \
+#     /usr/local/bin/llvm-symbolizer \
      /usr/local/bin/
+COPY --from=base-clang /usr/local/bin/llvm-symbolizer /usr/local/bin/llvm-symbolizer.bak
 
 RUN apt-get update && apt-get install -y \
     binutils \

@@ -33,7 +33,8 @@ export RUN_FUZZER_MODE="interactive"
 export FUZZING_ENGINE="libfuzzer"
 export SKIP_SEED_CORPUS="1"
 
-mv /usr/local/bin/llvm-symbolizer /usr/local/bin/llvm-symbolizer.bak
+#mv /usr/local/bin/llvm-symbolizer /usr/local/bin/llvm-symbolizer.bak
+#ls /usr/local/bin/
 traceback $OUT/$FUZZER $TESTCASE $OUT/testcase.json
 
 run_fuzzer $FUZZER $@ $TESTCASE
