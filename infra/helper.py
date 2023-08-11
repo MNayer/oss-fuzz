@@ -34,8 +34,8 @@ import time
 import constants
 
 DOCKER_TIMEOUT = 4          # Timeout value
-DOCKER_MEMLIMIT = "15g"     # Memory limit for each docker container
 DOCKER_TIMEOUT_UNIT = "h"   # Timeout unit
+DOCKER_MEMLIMIT = "4g"     # Memory limit for each docker container
 OSS_FUZZ_DIR = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 BUILD_DIR = os.path.join(OSS_FUZZ_DIR, 'build')
 
@@ -1200,7 +1200,7 @@ def apptainer_run_fuzzer(env, args):
     ])
 
   run_args.extend([
-#      '--memory', DOCKER_MEMLIMIT, # Causes errors on cluster
+      '--memory', DOCKER_MEMLIMIT, # TODO Causes errors on cluster
       '--bind',
       '%s:/out' % args.project.out,
       args.apptainer,
