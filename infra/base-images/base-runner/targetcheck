@@ -18,6 +18,41 @@ def continue_fuzzing():
     sys.exit(0)
 
 
+def frame_match_line_granularity(frame_a, frame_b):
+    return (
+        frame_a["function"]["fpath"] == frame_b["function"]["fpath"]
+        and frame_a["function"]["linenum"] == frame_b["function"]["linenum"]
+    )
+
+
+def frame_match_function_granularity(frame_a, frame_b):
+    return (
+        frame_a["function"]["fpath"] == frame_b["function"]["fpath"]
+        and frame_a["function"]["name"] == frame_b["function"]["name"]
+    )
+
+
+def first_frame_match(target_traceback, crash_traceback):
+    target_frame = target_traceback[0]
+    crash_frame = crash_traceback[0]
+
+    if frame_match_line_granularity(target_frame, crash_frame):
+        return True
+
+    return False
+
+
+def traceback_match(target_traceback, crash_traceback):
+    if len(target_traceback) != len(crash_traceback):
+        return False
+
+    for target_frame, crash_frame in zip(target_traceback, crash_traceback):
+        if not frame_match_line_granularity(target_frame, crash_frame):
+            return False
+
+    return True
+
+
 def main(executable, testcase):
     target_log = fread_json("/out/testcase.json")
     crash_log = fread_json(f"{testcase}.json")
@@ -35,16 +70,13 @@ def main(executable, testcase):
     if len(crash_traceback) == 0:
         continue_fuzzing()
 
-    target_frame = target_traceback[0]
-    crash_frame = crash_traceback[0]
+    # if first_frame_match(target_traceback, crash_traceback):
+    #    end_fuzzing()
 
-    if (
-        crash_frame["function"]["fpath"] == target_frame["function"]["fpath"]
-        and crash_frame["function"]["linenum"] == target_frame["function"]["linenum"]
-    ):
+    if traceback_match(target_traceback, crash_traceback):
         end_fuzzing()
-    else:
-        continue_fuzzing()
+
+    continue_fuzzing()
 
 
 if __name__ == "__main__":
