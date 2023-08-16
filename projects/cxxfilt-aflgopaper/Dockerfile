@@ -16,7 +16,7 @@
 
 FROM gcr.io/oss-fuzz-base/base-builder
 RUN apt-get update && \
-    apt-get install -y make autoconf automake libtool texinfo bison
+    apt-get install -y make autoconf automake libtool texinfo bison flex
 
 RUN git clone git://sourceware.org/git/binutils-gdb.git
 COPY build.sh $SRC
