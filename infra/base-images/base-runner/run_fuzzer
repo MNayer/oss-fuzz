@@ -26,6 +26,7 @@ echo "fuzzing started with: $0 $@"
 export PATH=$OUT:$PATH
 cd $OUT
 
+AFL_FUZZER_ARGS=${AFL_FUZZER_ARGS:-}
 DEBUGGER=${DEBUGGER:-}
 
 FUZZER=$1
@@ -168,7 +169,8 @@ elif [[ "$FUZZING_ENGINE" = aflgo ]]; then
 
 	# Use afl++ environment options (don't know if we need them, but it should
 	# not hurt to set them all)
-  export ASAN_OPTIONS="$ASAN_OPTIONS:abort_on_error=1:symbolize=0:detect_odr_violation=0:"
+	# Also: Set detect_leaks=0 as the default is 1 which makes fuzzing very(!) slow in many cases
+  export ASAN_OPTIONS="$ASAN_OPTIONS:abort_on_error=1:symbolize=0:detect_odr_violation=0:detect_leaks=0:"
   export MSAN_OPTIONS="$MSAN_OPTIONS:exit_code=86:symbolize=0"
   export UBSAN_OPTIONS="$UBSAN_OPTIONS:symbolize=0"
   export AFL_I_DONT_CARE_ABOUT_MISSING_CRASHES=1
@@ -195,6 +197,7 @@ elif [[ "$FUZZING_ENGINE" = aflgo ]]; then
   # Ensure timeout is a bit larger than 1sec as some of the OSS-Fuzz fuzzers
   # are slower than this.
   AFL_FUZZER_ARGS="$AFL_FUZZER_ARGS -h traceback -h targetcheck -t 5000+"
+  #AFL_FUZZER_ARGS="$AFL_FUZZER_ARGS -t 5000+"
 
 	# Make sure there's at least on file in the corpus directory
 	if [ $(find $CORPUS_DIR -type f | wc -l) = 0 ]; then
