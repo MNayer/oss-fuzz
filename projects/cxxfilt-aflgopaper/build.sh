@@ -1,7 +1,5 @@
 #!/bin/bash -eu
-
-# Copyright 2017-2018 Glenn Randers-Pehrson
-# Copyright 2016 Google Inc.
+# Copyright 2019 Google Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,51 +12,47 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+#
 ################################################################################
 
-git clean -f -x
-export ASAN_OPTIONS=detect_leaks=0
-./configure --disable-shared --disable-doc --disable-gdb --disable-libdecnumber --disable-readline --disable-sim --disable-ld --disable-werror
-make
-unset ASAN_OPTIONS
-cp binutils/cxxfilt $OUT/
+# build project
+if [ "$SANITIZER" = undefined ]; then
+    export CFLAGS="$CFLAGS -fno-sanitize=unsigned-integer-overflow"
+    export CXXFLAGS="$CXXFLAGS -fno-sanitize=unsigned-integer-overflow"
+fi
+#cd binutils-gdb
 
-#pushd /src/binutils-gdb/libiberty
-#echo """--- libiberty/cplus-dem.c	(revision 234607)
-#+++ libiberty/cplus-dem.c	(working copy)
-#@@ -1237,11 +1237,13 @@  squangle_mop_up (struct work_stuff *work)
-#     {
-#       free ((char *) work -> btypevec);
-#       work->btypevec = NULL;
-#+      work->bsize = 0;
-#     }
-#   if (work -> ktypevec != NULL)
-#     {
-#       free ((char *) work -> ktypevec);
-#       work->ktypevec = NULL;
-#+      work->ksize = 0;
-#     }
-# }""" > patch.diff
-#set +e
-#patch -p1 --forward < patch.diff
-#set -e
-#popd
+## Comment out the lines of logging to stderror from elfcomm.c
+## This is to make it nicer to read the output of libfuzzer.
+#Cd binutils
+#Sed -i 's/vfprintf (stderr/\/\//' elfcomm.c
+#Sed -i 's/fprintf (stderr/\/\//' elfcomm.c
+#Cd ../
 
-#mkdir obj-aflgo; mkdir obj-aflgo/temp
-#export SUBJECT=$PWD; export TMP_DIR=$PWD/obj-aflgo/temp
-#export CC=$AFLGO/afl-clang-fast; export CXX=$AFLGO/afl-clang-fast++
-#export LDFLAGS=-lpthread
-##export ADDITIONAL="-targets=$TMP_DIR/BBtargets.txt -outdir=$TMP_DIR -flto -fuse-ld=gold -Wl,-plugin-opt=save-temps"
-#
-##echo $'cxxfilt.c:227\ncxxfilt.c:62\ncplus-dem.c:886\ncplus-dem.c:1203\ncplus-dem.c:1490\ncplus-dem.c:2594\ncplus-dem.c:4319' > $TMP_DIR/BBtargets.txt
-#cd obj-aflgo; CFLAGS="-DFORTIFY_SOURCE=2 -fstack-protector-all -fno-omit-frame-pointer -g -Wno-error $ADDITIONAL" LDFLAGS="-ldl -lutil" ../configure --disable-shared --disable-gdb --disable-libdecnumber --disable-readline --disable-sim --disable-ld
-#make clean; make
-#cat $TMP_DIR/BBnames.txt | rev | cut -d: -f2- | rev | sort | uniq > $TMP_DIR/BBnames2.txt && mv $TMP_DIR/BBnames2.txt $TMP_DIR/BBnames.txt
-#cat $TMP_DIR/BBcalls.txt | sort | uniq > $TMP_DIR/BBcalls2.txt && mv $TMP_DIR/BBcalls2.txt $TMP_DIR/BBcalls.txt
-#cd binutils; $AFLGO/scripts/genDistance.sh $SUBJECT $TMP_DIR cxxfilt
-#cd ../../; mkdir obj-dist; cd obj-dist; # work around because cannot run make distclean
-#CFLAGS="-DFORTIFY_SOURCE=2 -fstack-protector-all -fno-omit-frame-pointer -g -Wno-error -distance=$TMP_DIR/distance.cfg.txt" LDFLAGS="-ldl -lutil" ../configure --disable-shared --disable-gdb --disable-libdecnumber --disable-readline --disable-sim --disable-ld
-#make
-#mkdir in; echo "" > in/in
-#$AFLGO/afl-fuzz -m none -z exp -c 45m -i in -o out binutils/cxxfilt
-## mkdir out; for i in {1..10}; do timeout -sHUP 60m $AFLGO/afl-fuzz -m none -z exp -c 45m -i in -o "out/out_$i" binutils/cxxfilt > /dev/null 2>&1 & done
+./configure --disable-gdb --enable-targets=all
+make MAKEINFO=true && true
+
+# Make fuzzer directory
+mkdir fuzz
+cp ../fuzz_cxxfilt.c fuzz/
+cd fuzz
+
+#for i in fuzz_disassemble fuzz_bfd; do
+#    $CC $CFLAGS -I ../include -I ../bfd -I ../opcodes -c $i.c -o $i.o
+#    $CXX $CXXFLAGS $i.o -o $OUT/$i $LIB_FUZZING_ENGINE ../opcodes/libopcodes.a ../bfd/libbfd.a ../libiberty/libiberty.a ../zlib/libz.a
+#done
+
+# Now compile the src/binutils fuzzers
+cd ../binutils
+
+cp ../../fuzz_cxxfilt.c .
+
+# Modify main functions so we dont have them anymore
+sed 's/main (int argc/old_main (int argc, char **argv);\nint old_main (int argc/' cxxfilt.c >> cxxfilt.h
+
+# Compile object file
+$CC $CFLAGS -DHAVE_CONFIG_H -I. -I../bfd -I./../bfd -I./../include -I./../zlib -DLOCALEDIR="\"/usr/local/share/locale\"" -Dbin_dummy_emulation=bin_vanilla_emulation -W -Wall -MT fuzz_cxxfilt.o -MD -MP -c -o fuzz_cxxfilt.o fuzz_cxxfilt.c
+
+## cxxfilt
+$CXX $CXXFLAGS $LIB_FUZZING_ENGINE -W -Wall -I./../zlib -o fuzz_cxxfilt fuzz_cxxfilt.o bucomm.o version.o filemode.o ../bfd/.libs/libbfd.a -L/src/binutils-gdb/zlib -lz ../libiberty/libiberty.a 
+mv fuzz_cxxfilt $OUT/fuzz_cxxfilt

@@ -20,4 +20,5 @@ RUN apt-get update && \
 
 RUN git clone git://sourceware.org/git/binutils-gdb.git
 COPY build.sh $SRC
+COPY fuzz_cxxfilt.c $SRC
 WORKDIR binutils-gdb
