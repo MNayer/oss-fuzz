@@ -1,0 +1,181 @@
+#!/usr/bin/env python3
+
+import os
+import pickle
+import json
+import sys
+import re
+import subprocess
+from fsdict import fsdict
+from pathlib import Path
+
+
+SOURCE_MAP_CACHE_PATH = "/tmp/source_map.pickle"
+
+
+def log(msg):
+    print(msg, file=sys.stderr, flush=True)
+
+
+def do_run(cmd, cwd=None):
+    res = subprocess.run(cmd, cwd=cwd, capture_output=True)
+    log = {
+        "returncode": res.returncode,
+        "stdout": res.stdout.decode("utf-8", errors="ignore"),
+        "stderr": res.stderr.decode("utf-8", errors="ignore"),
+    }
+    return log
+
+
+def run_coverage_fuzzer(out_path, fuzzer_name, testcase_path):
+    profraw_path = out_path / "default.profraw"
+
+    # Remove profraw file it one exists from a prior execution
+    if profraw_path.exists():
+        profraw_path.unlink()
+
+    # Run the program compiled for source coverage information
+    command = f"./{fuzzer_name} -rss_limit_mb=2560 -timeout=25 -runs=1 {testcase_path}"
+    res = do_run(command.split(" "), cwd=str(out_path))
+
+    return res["returncode"] == 0
+
+
+def convert_prof(out_path):
+    profdata_path = out_path / "default.profdata"
+
+    # Remove profdata file it one exists from a prior execution
+    if profdata_path.exists():
+        profdata_path.unlink()
+
+    command = "llvm-profdata merge -sparse ./default.profraw -o ./default.profdata"
+    res = do_run(command.split(" "), cwd=str(out_path))
+
+    return res["returncode"] == 0
+
+
+def export_prof(out_path, fuzzer_name):
+    profdata_path = out_path / "default.profdata"
+
+    # Remove profdata file it one exists from a prior execution
+    if not profdata_path.exists():
+        return False, None
+
+    command = f"llvm-cov export --path-equivalence=/,{str(out_path)} ./{fuzzer_name} -instr-profile=./default.profdata"
+    res = do_run(command.split(" "), cwd=str(out_path))
+    if res["returncode"] != 0:
+        return False, None
+
+    coverage = json.loads(res["stdout"])
+    return True, coverage
+
+
+def get_covered_functions(coverage):
+    functions = []
+    for data in coverage["data"]:
+        for function in data["functions"]:
+            if function["count"] > 0:
+                functions.append(function)
+    return functions
+
+
+def create_source_map(function_db, model):
+    source_map_cache_path = Path(SOURCE_MAP_CACHE_PATH)
+
+    # Read source map from cache
+    if source_map_cache_path.exists():
+        source_map = pickle.loads(source_map_cache_path.read_bytes())
+        return source_map
+
+    # Create source map
+    source_map = {}
+    for key, function in function_db.items():
+        meta = function["meta"]
+        score = meta["metrics"][model]
+        for origin in meta["origins"]:
+            filename = os.path.abspath(origin["fpath"])
+            name = origin["name"]
+            if not filename in source_map:
+                source_map[filename] = {}
+            if not name in source_map[filename]:
+                source_map[filename][name] = score
+            else:
+                source_map[filename][name] = max(source_map[filename][name], score)
+
+    # Cache source map
+    source_map_cache_path.write_bytes(pickle.dumps(source_map))
+
+    return source_map
+
+
+def function_to_vscore(source_map, function):
+    name = function["name"]
+    filenames = set(function["filenames"])
+
+    score = 0.
+    for filename in filenames:
+        filename = os.path.abspath(filename)
+        if ":" in name:
+            name = re.split("(?<!:):(?!:)", name)[-1]
+        if filename in source_map and name in source_map[filename]:
+            score = max(score, source_map[filename][name])
+
+    return score
+
+
+def functions_to_vscores(function_db, functions, model):
+    source_map = create_source_map(function_db, model)
+
+    vscores = []
+    for function in functions:
+        vscore = function_to_vscore(source_map, function)
+        vscores.append(vscore)
+    return vscores
+
+
+def calculate_vscore(out_path, fuzzer_name, model, function_db, testcase_path):
+    vscore_on_error = 1.0
+
+    success = run_coverage_fuzzer(out_path, fuzzer_name, testcase_path)
+    if not success:
+        return vscore_on_error
+
+    success = convert_prof(out_path)
+    if not success:
+        return vscore_on_error
+
+    success, coverage = export_prof(out_path, fuzzer_name)
+    if not success:
+        return vscore_on_error
+
+    functions = get_covered_functions(coverage)
+    if len(functions) == 0:
+        return vscore_on_error
+
+    function_vscores = functions_to_vscores(function_db, functions, model)
+    vscore = max(function_vscores) * 100
+
+    return vscore
+
+
+def main():
+    # Testcase path
+    testcase = sys.argv[1]
+    testcase_path = Path(testcase)
+
+    # TODO
+    out_directory = os.getenv("OUT")
+    fuzzer = os.getenv("FUZZER_NAME")
+    function_directory = "/functions"
+    model = "codet5p"
+
+    out_path = Path(out_directory)
+    coverage_out_path = out_path / "coverage"
+
+    vscore = calculate_vscore(coverage_out_path, fuzzer, model, fsdict(function_directory), testcase_path)
+
+    print(vscore)
+
+
+if __name__ == "__main__":
+    main()

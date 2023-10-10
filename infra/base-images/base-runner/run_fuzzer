@@ -256,21 +256,21 @@ fi
 
 echo $CMD_LINE
 
-# Unset OUT so the fuzz target can't rely on it.
-OUT_SAVE=$OUT
-unset OUT
+## Unset OUT so the fuzz target can't rely on it.
+#OUT_SAVE=$OUT
+#unset OUT
 
 if [ ! -z "$DEBUGGER" ]; then
   CMD_LINE="$DEBUGGER $CMD_LINE"
 fi
 
 set +e
-bash -c "$CMD_LINE"
-#if [ -z "${TIMEOUT:-}" ]; then
-#	bash -c "$CMD_LINE"
-#else
-#	bash -c "timeout -k 120 $TIMEOUT $CMD_LINE"
-#fi
+#timeout -s SIGINT -k 5m 5m bash -c "$CMD_LINE"
+if [ -z "${TIMEOUT:-}" ]; then
+	bash -c "$CMD_LINE"
+else
+	timeout -s INT -k 10m $TIMEOUT bash -c "$CMD_LINE"
+fi
 set -e
 
 # Copy output files to output directory
@@ -283,7 +283,8 @@ rm -rf $TMPDIR
 # Since the docker service runs as root we better make sure the user on the
 # host can r/w/x the files we create here.
 if [ $CONTAINER = "docker" ]; then
-	chmod -R a+rwx $OUT_SAVE
+	#chmod -R a+rwx $OUT_SAVE
+	chmod -R a+rwx $OUT
 	chmod -R a+rwx $SAVED_FUZZER_OUT
 fi
 #chmod -R 777 $WORK

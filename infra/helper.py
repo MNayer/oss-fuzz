@@ -299,6 +299,11 @@ def get_parser():  # pylint: disable=too-many-statements
                                     action='store_true',
                                     default=False,
                                     help='save the source code file (C/C++) in output directory')
+  build_fuzzers_parser.add_argument('--coverage',
+                                    dest='coverage',
+                                    action='store_true',
+                                    default=False,
+                                    help='build fuzzing target with source coverage support')
   build_fuzzers_parser.add_argument('--cpus',
                                     dest='cpus',
                                     type=float,
@@ -386,6 +391,10 @@ def get_parser():  # pylint: disable=too-many-statements
                                     dest='fuzzer_out_directory',
                                     default=None,
                                     help='overwrite default fuzzer out directory')
+  run_fuzzer_parser.add_argument('--functions_directory',
+                                    dest='functions_directory',
+                                    default=None,
+                                    help='functions directory')
   run_fuzzer_parser.add_argument('--mem_limit',
                                     help='memory limit (in mb) for each run',
                                     default="")
@@ -409,6 +418,18 @@ def get_parser():  # pylint: disable=too-many-statements
                                default='8008',
                                help='specify port for'
                                ' a local HTTP server rendering coverage report')
+  coverage_parser.add_argument('--out_directory',
+                                dest='out_directory',
+                                default=None,
+                                help='overwrite default out directory')
+  coverage_parser.add_argument('--commit',
+                                help='project commit to rollback to',
+                                default="")
+  coverage_parser.add_argument('--debug',
+                                dest='debug',
+                                action='store_true',
+                                default=False,
+                                help='enable debug mode (bash instead of coverage as docker CMD)')
   coverage_parser.add_argument('--fuzz-target',
                                help='specify name of a fuzz '
                                'target to be run for generating coverage '
@@ -774,6 +795,7 @@ def build_fuzzers_impl(  # pylint: disable=too-many-arguments,too-many-locals,to
     noinst,
     savesource,
     savetemps,
+    coverage,
     cpus,
     dwarf_version,
     graph_plugin,
@@ -830,6 +852,7 @@ def build_fuzzers_impl(  # pylint: disable=too-many-arguments,too-many-locals,to
       'NOINST=' + ("1" if noinst else ""),
       'SAVESOURCE=' + ("1" if savesource else ""),
       'SAVETEMPS=' + ("1" if savetemps else ""),
+      'COVERAGE=' + ("1" if coverage else ""),
       'DWARF=%d' % dwarf_version,
       'GRAPHPLUGIN=' + ("1" if graph_plugin else ""),
   ]
@@ -910,6 +933,7 @@ def build_fuzzers(args):
                             args.noinst,
                             args.savesource,
                             args.savetemps,
+                            args.coverage,
                             args.cpus,
                             args.dwarf_version,
                             args.graph_plugin,
@@ -1074,6 +1098,9 @@ def coverage(args):
         '--fuzz-target')
     return False
 
+  if args.out_directory:
+    args.project.out_directory = args.out_directory
+
   if not check_project_exists(args.project):
     return False
 
@@ -1119,14 +1146,17 @@ def coverage(args):
       '-m', DOCKER_MEMLIMIT,
       '-v',
       '%s:/out' % args.project.out,
-      '-t',
+      '-t' if not args.debug else '-ti',
       'gcr.io/oss-fuzz-base/base-runner',
-      'timeout', '-k', '120', f'{DOCKER_TIMEOUT}{DOCKER_TIMEOUT_UNIT}',
+      #'timeout', '-k', '120', f'{DOCKER_TIMEOUT}{DOCKER_TIMEOUT_UNIT}',
   ])
 
-  run_args.append('coverage')
-  if args.fuzz_target:
-    run_args.append(args.fuzz_target)
+  if not args.debug:
+    run_args.append('coverage')
+    if args.fuzz_target:
+      run_args.append(args.fuzz_target)
+  else:
+    run_args.append('bash')
 
   result = docker_run(run_args)
   if result:
@@ -1149,6 +1179,12 @@ def docker_run_fuzzer(env, args):
         '-v',
         '{corpus_dir}:/tmp/{fuzzer}_corpus'.format(corpus_dir=corpus_dir,
                                                    fuzzer=args.fuzzer_name)
+    ])
+
+  if args.functions_directory != None:
+    run_args.extend([
+      '-v',
+      '%s:/functions:ro' % args.functions_directory,
     ])
 
   if args.fuzzer_out_directory != None:
@@ -1229,6 +1265,7 @@ def run_fuzzer(args):
   env = [
       'FUZZING_ENGINE=' + args.engine,
       'SANITIZER=' + args.sanitizer,
+      'FUZZER_NAME=' + args.fuzzer_name,
       'AFLGO_EXPLOITATION=' + args.aflgo_exploitation,
       'AFLGO_DISABLE_DIRECTED=%s' % ('1' if args.aflgo_disable_directed else ''),
       'TIMEOUT=%s' % args.timeout,

@@ -133,9 +133,17 @@ ENV FUZZER_LDFLAGS ""
 
 WORKDIR $SRC
 
-RUN git clone https://github.com/AFLplusplus/AFLplusplus.git aflplusplus && \
+# Original
+#RUN git clone https://github.com/AFLplusplus/AFLplusplus.git aflplusplus && \
+#    cd aflplusplus && \
+#    git checkout 550ba4d77294e61597a5259d00769c61281e0042 && \
+#    wget --no-check-certificate -O oss.sh https://raw.githubusercontent.com/vanhauser-thc/binary_blobs/master/oss.sh && \
+#    chmod 755 oss.sh
+
+# Mnayer AFLpp
+RUN echo "7" && git clone https://github.com/MNayer/AFLplusplus.git aflplusplus && \
     cd aflplusplus && \
-    git checkout 550ba4d77294e61597a5259d00769c61281e0042 && \
+    git checkout vuln-guidance && \
     wget --no-check-certificate -O oss.sh https://raw.githubusercontent.com/vanhauser-thc/binary_blobs/master/oss.sh && \
     chmod 755 oss.sh
 

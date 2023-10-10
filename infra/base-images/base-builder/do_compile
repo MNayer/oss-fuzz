@@ -335,6 +335,16 @@ echo "CFLAGS=$CFLAGS"
 echo "CXXFLAGS=$CXXFLAGS"
 echo "---------------------------------------------------------------"
 
+if ! [ -z "$COVERAGE" ]; then
+	export CFLAGS="-fprofile-instr-generate -fcoverage-mapping $CFLAGS"
+	export CXXFLAGS="-fprofile-instr-generate -fcoverage-mapping $CXXFLAGS"
+	echo "INFO: Compile with coverage instrumentation. New CFLAGS/CXXFLAGS:"
+	echo "---------------------------------------------------------------"
+	echo "CFLAGS=$CFLAGS"
+	echo "CXXFLAGS=$CXXFLAGS"
+	echo "---------------------------------------------------------------"
+fi
+
 # Skip AFLGO preprocessing if fuzzing engine is not AFLGO
 if [[ "$FUZZING_ENGINE" == aflgo ]]; then
   export CC=$SRC/aflgo/afl-clang-fast
