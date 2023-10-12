@@ -5,6 +5,7 @@ import pickle
 import json
 import sys
 import re
+import numpy as np
 import subprocess
 from fsdict import fsdict
 from pathlib import Path
@@ -112,6 +113,9 @@ def function_to_vscore(source_map, function):
     name = function["name"]
     filenames = set(function["filenames"])
 
+    if len(source_map) == 0:
+        return 1.
+
     score = 0.
     for filename in filenames:
         filename = os.path.abspath(filename)
@@ -133,7 +137,7 @@ def functions_to_vscores(function_db, functions, model):
     return vscores
 
 
-def calculate_vscore(out_path, fuzzer_name, model, function_db, testcase_path):
+def calculate_vscore(out_path, fuzzer_name, vscore_reduce, model, function_db, testcase_path):
     vscore_on_error = 1.0
 
     success = run_coverage_fuzzer(out_path, fuzzer_name, testcase_path)
@@ -153,7 +157,16 @@ def calculate_vscore(out_path, fuzzer_name, model, function_db, testcase_path):
         return vscore_on_error
 
     function_vscores = functions_to_vscores(function_db, functions, model)
-    vscore = max(function_vscores) * 100
+    function_vscores = np.array(function_vscores)
+    if len(function_vscores) == 0:
+        vscore = 0.
+    elif vscore_reduce == "mean":
+        vscore = np.mean(function_vscores)
+    elif vscore_reduce == "max":
+        vscore = np.max(function_vscores)
+    elif vscore_reduce == "q75":
+        vscore = np.quantile(function_vscores, 0.75)
+    vscore *= 100
 
     return vscore
 
@@ -169,11 +182,20 @@ def main():
     function_directory = "/functions"
     model = "codet5p"
 
+    vscore_reduce_default = "mean"
+    vscore_reduce = os.getenv("VSCORE_REDUCE")
+    vscore_reduce = vscore_reduce_default if vscore_reduce == None else vscore_reduce
+
+    const_vscore = os.getenv("CONST_VSCORE") != None
+
     out_path = Path(out_directory)
-    coverage_out_path = out_path / "coverage"
+    coverage_out_path = out_path / "coverage" / "out"
 
-    vscore = calculate_vscore(coverage_out_path, fuzzer, model, fsdict(function_directory), testcase_path)
+    vscore = calculate_vscore(coverage_out_path, fuzzer, vscore_reduce, model, fsdict(function_directory), testcase_path)
+    if const_vscore:
+        vscore = 1.
 
+    log("%s %f" % (vscore_reduce, vscore))
     print(vscore)
 
 

@@ -106,7 +106,7 @@ RUN wget https://repo1.maven.org/maven2/org/jacoco/org.jacoco.cli/0.8.7/org.jaco
     echo "c1814e7bba5fd8786224b09b43c84fd6156db690  /opt/jacoco-cli.jar" | shasum --check
 
 # Install vscore dependencies
-RUN pip install filesystem-dict
+RUN pip install filesystem-dict numpy
 
 # Do this last to make developing these files easier/faster due to caching.
 COPY bad_build_check \

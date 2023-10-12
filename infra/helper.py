@@ -395,6 +395,15 @@ def get_parser():  # pylint: disable=too-many-statements
                                     dest='functions_directory',
                                     default=None,
                                     help='functions directory')
+  run_fuzzer_parser.add_argument('--const_vscore',
+                                    dest='const_vscore',
+                                    action='store_true',
+                                    default=False,
+                                    help='use constant vscore (if vscore is used)')
+  run_fuzzer_parser.add_argument('--vscore_reduce',
+                                    dest='vscore_reduce',
+                                    default=None,
+                                    help='vscore reduce function (e. g. mean, max, q75)')
   run_fuzzer_parser.add_argument('--mem_limit',
                                     help='memory limit (in mb) for each run',
                                     default="")
@@ -1277,6 +1286,12 @@ def run_fuzzer(args):
 
   if args.fuzzer_out_directory != None:
       env.append('FUZZER_OUT=/fuzzer_out')
+
+  if args.const_vscore:
+      env.append('CONST_VSCORE=1')
+
+  if args.vscore_reduce != None:
+      env.append('VSCORE_REDUCE=%s' % args.vscore_reduce)
 
   if args.e:
     env += args.e
